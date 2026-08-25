@@ -11,3 +11,7 @@ Before every database connection request:
 ## Temporary scripts
 
 Create all temporary scripts inside the repository's `temp_scripts/` directory. Do not place temporary scripts in the repository root or other directories. Delete them when they are no longer needed unless the user asks to retain them.
+
+## Local RAG synchronization
+
+After every finding, diagnosis, handled error, or software/repository change, update the local RAG database by ingesting the relevant changed or newly created supported source file(s). Preserve sanitized content and never index credentials, secrets, or other sensitive values.

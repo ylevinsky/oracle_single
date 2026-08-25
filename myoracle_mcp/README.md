@@ -3,7 +3,9 @@
 Repository-scoped MCP server for Oracle connections stored in
 `.db/connections.json`.
 
-The server exposes seven tools:
+The server exposes 41 tools: the seven repository-scoped tools listed below,
+plus the 34 additional tools imported from the maintained Oracle implementation
+in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
 
 - `connections_list`: lists saved Oracle connection names without connecting.
 - `prepare_connection`: reads and returns every saved connection detail.
@@ -17,6 +19,14 @@ The server exposes seven tools:
   parsing schemas whose plans contain `TABLE ACCESS FULL`.
 - `inspect_sql_index_context`: returns active plan predicates, object statistics,
   relevant column statistics, and existing indexes for a SQL ID.
+
+The imported tools cover connection metadata, tablespace capacity and expansion,
+compression, Scheduler jobs, execution plans, materialized views, sync status,
+sessions, locks, diagnostics, source and object export, statistics, indexes,
+memory, tracing, sequence recreation, Scheduler execution, and index creation.
+Their original names and signatures are preserved. They run in this single
+`myoracle` MCP process and use `.db/connections.json` through the repository
+connection adapter.
 
 Database tools use the saved connection record directly. Write-capable tools
 must still validate their arguments and clearly identify their state-changing

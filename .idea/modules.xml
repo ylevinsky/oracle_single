@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/local-oracle-rag.iml" filepath="$PROJECT_DIR$/.idea/local-oracle-rag.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/myoracle-mcp.iml" filepath="$PROJECT_DIR$/.idea/myoracle-mcp.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/oracle_single.iml" filepath="$PROJECT_DIR$/.idea/oracle_single.iml" />
+    </modules>
+  </component>
+</project>

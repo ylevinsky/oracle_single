@@ -4,4 +4,4 @@ args = ["run", "--project", 'C:\git\oracle_single\myoracle_mcp', "python", 'C:\g
 cwd = 'C:\git\oracle_single'
 startup_timeout_sec = 60
 tool_timeout_sec = 60
-enabled_tools = ["connections_list", "prepare_connection", "list_schemas", "list_custom_jobs"]
+enabled_tools = ["connections_list", "prepare_connection", "list_schemas", "list_custom_jobs", "list_top_full_scan_queries", "inspect_sql_index_context"]

@@ -1,0 +1,11 @@
+# FPY_WEEKLY live plan: index and SQL rewrite recommendations
+
+- Request and scope: propose additional indexes and SQL rewrites for the currently running FLEX `SYS.FPY_WEEKLY` job. No DDL or package change was executed.
+- Live evidence: active INSERT SQL ID `46nwd5twwn17y` has cost 358239 and had read 3,088,920 blocks. Its date predicate spans `2025-08-17` through `2026-08-24`, not one week. The plan has a hash anti-join, then a broad `STEP_RESULT.UUT_RESULT BETWEEN min_id AND max_id` range scan, nested hash outer joins, and full scans of large child tables.
+- Existing indexes: `UUT_RESULT` has `IDX_START_DATE_TIME_STATUS_SN`, `IX_UUT_RESULT_SERIAL_START`, and `ID` PK; `STEP_RESULT` has `IDX_STEP_RESULT_NEW (UUT_RESULT, STEP_PARENT, ID)`. `STEP_STRINGVALUE`, `STEP_PASSFAIL`, and `MEAS_NUMERICLIMIT` each already have a unique `(STEP_RESULT, ID)` index. Do not add duplicates.
+- Conditional index only: `CREATE INDEX SYSTEM_ATE_2.IX_STEP_MSGPOPUP_STEP_RESULT ON SYSTEM_ATE_2.STEP_MSGPOPUP (STEP_RESULT)`. Do not create it yet: statistics say zero rows and its full scan has cost 2. Reassess after current statistics are gathered.
+- Required rewrite: remove the `M` CTE and `JOIN M ON sr.UUT_RESULT BETWEEN M.min_id AND M.max_id`; join `STEP_RESULT` only through selected `TEMP_SERIAL` / `UUT_RESULT` IDs. This prevents the min/max range from including unrelated UUTs.
+- Required rewrite: replace the four LEFT JOINs used only in the `COALESCE(...ID...)` filter with EXISTS predicates against each child table. This uses existing leading `STEP_RESULT` indexes and avoids wide outer hash-join rows.
+- Required rewrite: use one `ROW_NUMBER() OVER (PARTITION BY uut_serial_number ORDER BY start_date_time, id)` and filter `rn=1`, instead of separate inconsistent `ROW_NUMBER ORDER BY ID` and `FIRST_VALUE ORDER BY START_DATE_TIME` analytics.
+- Maintenance prerequisite: child-table statistics are stale from 2021 on `STEP_STRINGVALUE`, `STEP_PASSFAIL`, and `MEAS_NUMERICLIMIT`; gather table and dependent-index statistics before judging the final plan.
+- MCP feature: added read-only `inspect_saved_table_indexes`.

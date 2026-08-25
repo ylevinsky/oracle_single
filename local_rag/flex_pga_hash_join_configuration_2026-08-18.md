@@ -1,0 +1,9 @@
+# FLEX PGA and hash-join configuration assessment
+
+- Request and scope: inspect memory, workarea, optimizer, parallelism, and resource-manager settings relevant to `ORA-06580` during the running FPY_WEEKLY retry. Read-only; no parameter was changed.
+- Current configuration: `MEMORY_TARGET=0`, `SGA_TARGET=12G`, `PGA_AGGREGATE_TARGET=8G`, `PGA_AGGREGATE_LIMIT=18G`, `WORKAREA_SIZE_POLICY=AUTO`, and parallel execution policy `MANUAL` with `PARALLEL_MAX_SERVERS=0`. Optimizer and statistics settings are defaults; no Resource Manager plan is active.
+- PGA pressure: `maximum PGA allocated=9.20G`, `over allocation count=33`, and `extra bytes read/written=15.85TB` since startup. This supports increasing the PGA target rather than changing manual `HASH_AREA_SIZE`.
+- Oracle target advice: at 8G Oracle estimates 9 over-allocations and 9.48TB extra I/O; at 10G it estimates 0 over-allocations and 7.18TB extra I/O. The prediction remains flat above 10G.
+- Proposed change after the current job completes and host-memory capacity is verified: set `PGA_AGGREGATE_TARGET=10G`; retain `WORKAREA_SIZE_POLICY=AUTO`; keep `PGA_AGGREGATE_LIMIT=18G` unless capacity planning requires a different safety ceiling. Do not set `HASH_AREA_SIZE` in AUTO mode.
+- ORA-06580-specific setting: `HASH_JOIN_MULTIBLOCK_IO_COUNT` was not exposed by `V$PARAMETER` in this instance, so its current value is unverified. Oracle error guidance identifies it as the slot-size parameter; assess it separately before any change.
+- MCP feature: added `inspect_saved_oracle_memory_configuration`, returning selected instance settings, `V$PGASTAT`, and `V$PGA_TARGET_ADVICE`.

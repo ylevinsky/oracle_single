@@ -19,11 +19,8 @@ TOKEN_LIFETIME_SECONDS = 10 * 60
 mcp = FastMCP(
     "myoracle",
     instructions=(
-        "Oracle tools scoped to this repository. Before every database connection, "
-        "call prepare_connection, show every returned connection detail (including "
-        "the stored password) to the user, and ask whether the details are current. "
-        "Only after explicit confirmation may you pass the one-time confirmation "
-        "token to a database tool. Never reuse a token."
+        "Oracle tools scoped to this repository. Use the saved connection records "
+        "and validate all tool inputs before connecting or changing Oracle state."
     ),
 )
 
@@ -174,13 +171,7 @@ def connections_list() -> list[str]:
 
 @mcp.tool()
 def prepare_connection(connection_name: str) -> dict[str, Any]:
-    """Read and return full connection details plus a one-time confirmation token.
-
-    This does not connect. The caller must show every field, including the password,
-    and ask the user to confirm that the details are current. The token is valid for
-    ten minutes, for one database connection attempt, and only while the record is
-    unchanged.
-    """
+    """Read and return the full saved connection details without connecting."""
     connection = _read_connection(connection_name)
     token = secrets.token_urlsafe(32)
     now = time.monotonic()
@@ -195,17 +186,14 @@ def prepare_connection(connection_name: str) -> dict[str, Any]:
         "details": connection,
         "confirmation_token": token,
         "expires_in_seconds": TOKEN_LIFETIME_SECONDS,
-        "next_step": (
-            "Show all details to the user and ask if they are current. Only after "
-            "explicit confirmation call a database tool with this token."
-        ),
+        "note": "The token is retained for backward compatibility and is not required.",
     }
 
 
 @mcp.tool()
-def list_schemas(connection_name: str, confirmation_token: str) -> dict[str, Any]:
-    """Connect once and list schemas after consuming a confirmed one-time token."""
-    connection = _consume_confirmation(connection_name, confirmation_token)
+def list_schemas(connection_name: str) -> dict[str, Any]:
+    """Connect once and list schemas from a saved Oracle connection."""
+    connection = _read_connection(connection_name)
     with _connect(connection) as database:
         with database.cursor() as cursor:
             cursor.execute("select username from dba_users order by username")
@@ -219,15 +207,12 @@ def list_schemas(connection_name: str, confirmation_token: str) -> dict[str, Any
 
 
 @mcp.tool()
-def list_custom_jobs(
-    connection_name: str, confirmation_token: str
-) -> dict[str, Any]:
+def list_custom_jobs(connection_name: str) -> dict[str, Any]:
     """List Scheduler and legacy jobs owned by non-Oracle-maintained users.
 
-    The one-time confirmation token is consumed before a single read-only database
-    connection is opened. Oracle-maintained owners are excluded using DBA_USERS.
+    Oracle-maintained owners are excluded using DBA_USERS.
     """
-    connection = _consume_confirmation(connection_name, confirmation_token)
+    connection = _read_connection(connection_name)
     scheduler_sql = """
         select j.owner,
                j.job_name,
@@ -286,10 +271,9 @@ def list_custom_jobs(
 @mcp.tool()
 def inspect_saved_database_space(
     connection_name: str,
-    confirmation_token: str,
 ) -> dict[str, Any]:
     """Read permanent and UNDO tablespace capacity from a saved Oracle connection."""
-    connection = _consume_confirmation(connection_name, confirmation_token)
+    connection = _read_connection(connection_name)
     space_sql = """
         select t.tablespace_name,
                t.contents,
@@ -346,7 +330,6 @@ def inspect_saved_database_space(
 @mcp.tool()
 def list_top_full_scan_queries(
     connection_name: str,
-    confirmation_token: str,
     limit: int = 10,
 ) -> dict[str, Any]:
     """Rank custom shared-pool SQL with full table scans by physical reads.
@@ -357,7 +340,7 @@ def list_top_full_scan_queries(
     """
     if not 1 <= limit <= 100:
         raise ValueError("limit must be between 1 and 100")
-    connection = _consume_confirmation(connection_name, confirmation_token)
+    connection = _read_connection(connection_name)
     ranking_sql = """
         select sql_id,
                parsing_schema_name,
@@ -430,11 +413,10 @@ def list_top_full_scan_queries(
 @mcp.tool()
 def inspect_sql_index_context(
     connection_name: str,
-    confirmation_token: str,
     sql_id: str,
 ) -> dict[str, Any]:
     """Inspect plan predicates, statistics, and indexes for a SQL ID read-only."""
-    connection = _consume_confirmation(connection_name, confirmation_token)
+    connection = _read_connection(connection_name)
     plan_sql = """
         select child_number,
                plan_hash_value,

@@ -1,0 +1,9 @@
+# Optional environment overrides
+.env
+.env.*
+!.env.example
+
+# Python environments and caches
+.venv/
+__pycache__/
+*.py[cod]

@@ -1,0 +1,7 @@
+[mcp_servers.myoracle]
+command = 'C:\Users\brillix\AppData\Local\Microsoft\WinGet\Packages\astral-sh.uv_Microsoft.Winget.Source_8wekyb3d8bbwe\uv.exe'
+args = ["run", "--project", 'C:\git\oracle_single\myoracle_mcp', "python", 'C:\git\oracle_single\myoracle_mcp\server.py']
+cwd = 'C:\git\oracle_single'
+startup_timeout_sec = 60
+tool_timeout_sec = 60
+enabled_tools = ["connections_list", "prepare_connection", "list_schemas", "list_custom_jobs"]

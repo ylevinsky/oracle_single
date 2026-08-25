@@ -1,0 +1,12 @@
+[project]
+name = "myoracle-mcp"
+version = "0.1.0"
+description = "Repository-scoped Oracle MCP server with mandatory connection confirmation"
+requires-python = ">=3.11"
+dependencies = [
+  "mcp>=1.27,<2",
+  "oracledb>=4,<5",
+]
+
+[tool.uv]
+package = false

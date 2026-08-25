@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "connections": {
+    "local_postgres_admin": {
+      "engine": "postgresql",
+      "host": "localhost",
+      "port": 5432,
+      "database": "postgres",
+      "username": "postgres",
+      "sslmode": "disable",
+      "password": "postgres1",
+      "purpose": "Local PostgreSQL administration, including recreating the RAG database",
+      "status": "confirmed_and_reachable",
+      "last_verified": "2026-07-12"
+    },
+    "local_rag": {
+      "engine": "postgresql",
+      "host": "localhost",
+      "port": 5432,
+      "database": "rag",
+      "username": "postgres",
+      "sslmode": "disable",
+      "password": "postgres1",
+      "purpose": "RAG application database with the pgvector vector data type",
+      "status": "ready",
+      "pgvector_version": "0.8.3",
+      "last_verified": "2026-07-12"
+    },
+    "es_db2_orclsp_sys": {
+      "engine": "oracle",
+      "host": "es-db2-sp.sp.essencesecurity.com",
+      "port": 1521,
+      "database": "orclsp",
+      "sid": "orclsp",
+      "username": "sys",
+      "privilege_mode": "SYSDBA",
+      "sslmode": "disable",
+      "password": "ProdE$$ence2023",
+      "purpose": "Read-only Oracle metadata inspection, including schemas and custom jobs",
+      "status": "unverified"
+    }
+  }
+}

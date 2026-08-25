@@ -3,7 +3,7 @@
 Repository-scoped MCP server for Oracle connections stored in
 `.db/connections.json`.
 
-The server exposes six tools:
+The server exposes seven tools:
 
 - `connections_list`: lists saved Oracle connection names without connecting.
 - `prepare_connection`: reads and returns every saved detail, including the
@@ -11,6 +11,9 @@ The server exposes six tools:
 - `list_schemas`: consumes that token, connects once, and queries `DBA_USERS`.
 - `list_custom_jobs`: consumes that token, connects once, and lists Scheduler
   and legacy jobs owned by users where `ORACLE_MAINTAINED = 'N'`.
+- `inspect_saved_database_space`: consumes that token, connects once, and
+  reports allocated, free, and AUTOEXTEND capacity for online permanent and
+  UNDO tablespaces.
 - `list_top_full_scan_queries`: ranks shared-pool SQL from non-Oracle-maintained
   parsing schemas whose plans contain `TABLE ACCESS FULL`.
 - `inspect_sql_index_context`: returns active plan predicates, object statistics,

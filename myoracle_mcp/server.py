@@ -284,6 +284,66 @@ def list_custom_jobs(
 
 
 @mcp.tool()
+def inspect_saved_database_space(
+    connection_name: str,
+    confirmation_token: str,
+) -> dict[str, Any]:
+    """Read permanent and UNDO tablespace capacity from a saved Oracle connection."""
+    connection = _consume_confirmation(connection_name, confirmation_token)
+    space_sql = """
+        select t.tablespace_name,
+               t.contents,
+               df.allocated_bytes,
+               df.max_bytes,
+               df.autoextend_files,
+               nvl(fs.free_bytes, 0) as free_bytes
+          from dba_tablespaces t
+          join (
+                select tablespace_name,
+                       sum(bytes) as allocated_bytes,
+                       sum(case when autoextensible = 'YES' then 1 else 0 end)
+                           as autoextend_files,
+                       sum(maxbytes) as max_bytes
+                  from dba_data_files
+                 group by tablespace_name
+               ) df on df.tablespace_name = t.tablespace_name
+          left join (
+                select tablespace_name, sum(bytes) as free_bytes
+                  from dba_free_space
+                 group by tablespace_name
+               ) fs on fs.tablespace_name = t.tablespace_name
+         where t.contents in ('PERMANENT', 'UNDO')
+           and t.status = 'ONLINE'
+         order by t.tablespace_name
+    """
+    with _connect(connection) as database:
+        with database.cursor() as cursor:
+            cursor.execute(space_sql)
+            tablespaces = []
+            for row in cursor:
+                name, contents, allocated, maximum, autoextend_files, free = row
+                allocated_int = int(allocated or 0)
+                free_int = int(free or 0)
+                maximum_int = int(maximum or 0)
+                tablespaces.append({
+                    "tablespace_name": str(name),
+                    "contents": str(contents),
+                    "allocated_bytes": allocated_int,
+                    "max_bytes": maximum_int,
+                    "autoextend_files": int(autoextend_files or 0),
+                    "free_bytes": free_int,
+                    "free_percent": round(100 * free_int / allocated_int, 2)
+                    if allocated_int else 100.0,
+                })
+    return {
+        "connection_name": connection_name,
+        "database": connection["database"],
+        "tablespace_count": len(tablespaces),
+        "tablespaces": tablespaces,
+    }
+
+
+@mcp.tool()
 def list_top_full_scan_queries(
     connection_name: str,
     confirmation_token: str,

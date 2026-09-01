@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import ctypes
+import ctypes.wintypes
 import secrets
 import threading
 import time
@@ -9,6 +11,8 @@ from pathlib import Path
 from typing import Any
 
 import oracledb
+import paramiko
+import psycopg
 from mcp.server.fastmcp import FastMCP
 
 
@@ -54,7 +58,6 @@ def _read_connection(connection_name: str) -> dict[str, Any]:
         "database",
         "username",
         "sslmode",
-        "password",
         "purpose",
     )
     missing = [key for key in required if connection.get(key) in (None, "")]
@@ -64,12 +67,70 @@ def _read_connection(connection_name: str) -> dict[str, Any]:
         )
     if str(connection["engine"]).lower() != "oracle":
         raise ValueError(f"Connection '{connection_name}' is not an Oracle connection")
+    connection = dict(connection)
+    connection["connection_name"] = connection_name
     return connection
 
 
+def _credential_target(connection_name: str, connection: dict[str, Any]) -> str:
+    """Return the configured Windows Credential Manager target."""
+    target = str(connection.get("credential_target") or "").strip()
+    return target or f"OracleMCP/{connection_name}/SYS"
+
+
+def _read_windows_credential(target: str) -> str:
+    """Read a generic password from Windows Credential Manager."""
+    if not hasattr(ctypes, "windll"):
+        raise RuntimeError("Windows Credential Manager is only available on Windows")
+
+    class CREDENTIAL(ctypes.Structure):
+        _fields_ = [
+            ("Flags", ctypes.wintypes.DWORD),
+            ("Type", ctypes.wintypes.DWORD),
+            ("TargetName", ctypes.wintypes.LPWSTR),
+            ("Comment", ctypes.wintypes.LPWSTR),
+            ("LastWritten", ctypes.c_byte * 8),
+            ("CredentialBlobSize", ctypes.wintypes.DWORD),
+            ("CredentialBlob", ctypes.POINTER(ctypes.c_ubyte)),
+            ("Persist", ctypes.wintypes.DWORD),
+            ("AttributeCount", ctypes.wintypes.DWORD),
+            ("Attributes", ctypes.c_void_p),
+            ("TargetAlias", ctypes.wintypes.LPWSTR),
+            ("UserName", ctypes.wintypes.LPWSTR),
+        ]
+
+    credential_ptr = ctypes.POINTER(CREDENTIAL)()
+    advapi32 = ctypes.windll.advapi32
+    advapi32.CredReadW.argtypes = [
+        ctypes.wintypes.LPCWSTR,
+        ctypes.wintypes.DWORD,
+        ctypes.wintypes.DWORD,
+        ctypes.POINTER(ctypes.POINTER(CREDENTIAL)),
+    ]
+    advapi32.CredReadW.restype = ctypes.wintypes.BOOL
+    advapi32.CredFree.argtypes = [ctypes.c_void_p]
+    advapi32.CredFree.restype = None
+
+    if not advapi32.CredReadW(target, 1, 0, ctypes.byref(credential_ptr)):
+        error = ctypes.get_last_error()
+        raise ValueError(
+            f"Windows Credential Manager entry not found for target '{target}' "
+            f"(error {error})"
+        )
+    try:
+        credential = credential_ptr.contents
+        blob = ctypes.string_at(credential.CredentialBlob, credential.CredentialBlobSize)
+        return blob.decode("utf-16-le").rstrip("\x00")
+    finally:
+        advapi32.CredFree(credential_ptr)
+
+
 def _fingerprint(connection_name: str, connection: dict[str, Any]) -> str:
+    fingerprint_connection = {
+        key: value for key, value in connection.items() if key != "password"
+    }
     canonical = json.dumps(
-        {"name": connection_name, "connection": connection},
+        {"name": connection_name, "connection": fingerprint_connection},
         sort_keys=True,
         separators=(",", ":"),
     ).encode("utf-8")
@@ -128,9 +189,12 @@ def _connect(connection: dict[str, Any]) -> oracledb.Connection:
     elif privilege_mode:
         raise ValueError(f"Unsupported Oracle privilege_mode: {privilege_mode}")
 
+    password = _read_windows_credential(
+        _credential_target(str(connection.get("connection_name", "")), connection)
+    )
     kwargs: dict[str, Any] = {
         "user": str(connection["username"]),
-        "password": str(connection["password"]),
+        "password": str(password),
         "params": params,
     }
     if mode is not None:
@@ -154,6 +218,82 @@ def _fetch_dicts(cursor: oracledb.Cursor) -> list[dict[str, Any]]:
         {column: _json_value(value) for column, value in zip(columns, row)}
         for row in cursor
     ]
+
+
+def _ssh_settings(connection_name: str, connection: dict[str, Any]) -> tuple[str, str, int]:
+    username = str(connection.get("ssh_username") or "").strip()
+    if not username:
+        raise ValueError(
+            f"Connection '{connection_name}' needs an ssh_username before SSH use"
+        )
+    target = str(connection.get("ssh_credential_target") or "").strip()
+    target = target or f"SSH/{connection['host']}"
+    return username, target, int(connection.get("ssh_port", 22))
+
+
+def _open_ssh(connection_name: str) -> paramiko.SSHClient:
+    connection = _read_connection(connection_name)
+    username, target, port = _ssh_settings(connection_name, connection)
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.RejectPolicy())
+    client.connect(
+        hostname=str(connection["host"]),
+        port=port,
+        username=username,
+        password=_read_windows_credential(target),
+        look_for_keys=False,
+        allow_agent=False,
+        timeout=15,
+        banner_timeout=15,
+        auth_timeout=15,
+    )
+    return client
+
+
+@mcp.tool()
+def check_ssh_connectivity(connection_name: str) -> dict[str, Any]:
+    """Check SSH connectivity for a saved Oracle host without running a command."""
+    client = _open_ssh(connection_name)
+    try:
+        connection = _read_connection(connection_name)
+        username, target, port = _ssh_settings(connection_name, connection)
+        return {
+            "connection_name": connection_name,
+            "host": connection["host"],
+            "port": port,
+            "username": username,
+            "credential_target": target,
+            "status": "connected",
+        }
+    finally:
+        client.close()
+
+
+@mcp.tool()
+def run_ssh_command(
+    connection_name: str, command: str, timeout_seconds: int = 30
+) -> dict[str, Any]:
+    """Run one explicitly supplied remote SSH command and return its output."""
+    command = command.strip()
+    if not command:
+        raise ValueError("command must not be empty")
+    if not 1 <= timeout_seconds <= 300:
+        raise ValueError("timeout_seconds must be between 1 and 300")
+    client = _open_ssh(connection_name)
+    try:
+        stdin, stdout, stderr = client.exec_command(
+            command, timeout=timeout_seconds, get_pty=False
+        )
+        exit_status = stdout.channel.recv_exit_status()
+        return {
+            "connection_name": connection_name,
+            "command": command,
+            "exit_status": int(exit_status),
+            "stdout": stdout.read().decode("utf-8", errors="replace"),
+            "stderr": stderr.read().decode("utf-8", errors="replace"),
+        }
+    finally:
+        client.close()
 
 
 @mcp.tool()
@@ -181,9 +321,14 @@ def prepare_connection(connection_name: str) -> dict[str, Any]:
             _fingerprint(connection_name, connection),
             now,
         )
+    safe_details = {
+        key: value for key, value in connection.items()
+        if key not in {"password", "connection_name"}
+    }
+    safe_details["credential_target"] = _credential_target(connection_name, connection)
     return {
         "connection_name": connection_name,
-        "details": connection,
+        "details": safe_details,
         "confirmation_token": token,
         "expires_in_seconds": TOKEN_LIFETIME_SECONDS,
         "note": "The token is retained for backward compatibility and is not required.",
@@ -324,6 +469,50 @@ def inspect_saved_database_space(
         "database": connection["database"],
         "tablespace_count": len(tablespaces),
         "tablespaces": tablespaces,
+    }
+
+
+@mcp.tool()
+def inspect_all_saved_database_space() -> dict[str, Any]:
+    """Read tablespace capacity from every saved Oracle target."""
+    results = []
+    for connection_name in connections_list():
+        try:
+            results.append({
+                "connection_name": connection_name,
+                "ok": True,
+                "result": inspect_saved_database_space(connection_name),
+            })
+        except Exception as exc:
+            results.append({
+                "connection_name": connection_name,
+                "ok": False,
+                "error": f"{type(exc).__name__}: {exc}",
+            })
+    return {"target_count": len(results), "results": results}
+
+
+@mcp.tool()
+def inspect_local_rag_database() -> dict[str, Any]:
+    """Check local RAG PostgreSQL, pgvector, and required tables."""
+    connection = _read_connection("local_rag")
+    url = (
+        f"postgresql://{connection['username']}:{connection['password']}@"
+        f"{connection['host']}:{connection['port']}/{connection['database']}"
+    )
+    with psycopg.connect(url) as database:
+        row = database.execute("""
+            select current_database(),
+                   exists (select 1 from pg_extension where extname = 'vector'),
+                   to_regclass('public.rag_documents'),
+                   to_regclass('public.rag_chunks')
+        """).fetchone()
+    return {
+        "database": row[0],
+        "pgvector_installed": bool(row[1]),
+        "rag_documents_table": str(row[2]) if row[2] else None,
+        "rag_chunks_table": str(row[3]) if row[3] else None,
+        "healthy": bool(row[1] and row[2] and row[3]),
     }
 
 

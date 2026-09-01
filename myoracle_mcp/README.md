@@ -3,7 +3,7 @@
 Repository-scoped MCP server for Oracle connections stored in
 `.db/connections.json`.
 
-The server exposes 41 tools: the seven repository-scoped tools listed below,
+The server exposes 43 tools: the nine repository-scoped tools listed below,
 plus the 34 additional tools imported from the maintained Oracle implementation
 in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
 
@@ -15,6 +15,10 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
 - `inspect_saved_database_space`: connects once and
   reports allocated, free, and AUTOEXTEND capacity for online permanent and
   UNDO tablespaces.
+- `inspect_all_saved_database_space`: checks every saved Oracle target and
+  returns per-target capacity results or sanitized connection errors.
+- `inspect_local_rag_database`: checks the local RAG PostgreSQL database,
+  pgvector extension, and required RAG tables.
 - `list_top_full_scan_queries`: ranks shared-pool SQL from non-Oracle-maintained
   parsing schemas whose plans contain `TABLE ACCESS FULL`.
 - `inspect_sql_index_context`: returns active plan predicates, object statistics,

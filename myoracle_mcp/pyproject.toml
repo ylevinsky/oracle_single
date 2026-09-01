@@ -6,6 +6,8 @@ requires-python = ">=3.11"
 dependencies = [
   "mcp>=1.27,<2",
   "oracledb>=4,<5",
+  "paramiko>=3.4,<4",
+  "psycopg[binary]>=3.2,<4",
 ]
 
 [tool.uv]

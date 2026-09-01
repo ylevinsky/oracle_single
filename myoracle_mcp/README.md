@@ -15,10 +15,18 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
 - `inspect_saved_database_space`: connects once and
   reports allocated, free, and AUTOEXTEND capacity for online permanent and
   UNDO tablespaces.
+- `collect_saved_backup_scripts`: copies backup, dependency, and restore script
+  files from an SSH-accessible saved host into `rman/scripts/<site>`.
+- `inspect_saved_alert_log_errors`: checks recent Oracle alert-log records and
+  reports matching errors.
+- `inspect_saved_backup_log_errors`: scans recent remote backup logs and
+  reports matching errors.
 - `inspect_all_saved_database_space`: checks every saved Oracle target and
   returns per-target capacity results or sanitized connection errors.
 - `inspect_local_rag_database`: checks the local RAG PostgreSQL database,
   pgvector extension, and required RAG tables.
+- `ingest_local_rag_markdown`: ingests a Markdown file or directory into the
+  local PostgreSQL RAG database.
 - `list_top_full_scan_queries`: ranks shared-pool SQL from non-Oracle-maintained
   parsing schemas whose plans contain `TABLE ACCESS FULL`.
 - `inspect_sql_index_context`: returns active plan predicates, object statistics,

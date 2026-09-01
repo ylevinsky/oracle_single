@@ -10,7 +10,9 @@ Before every database connection request:
 
 ## Temporary scripts
 
-Create all temporary scripts inside the repository's `temp_scripts/` directory. Do not place temporary scripts in the repository root or other directories. Delete them when they are no longer needed unless the user asks to retain them.
+1. All requests must prioritize implementation through this repository's MCP server. Prefer adding or using an MCP tool over one-off commands or standalone scripts.
+2. When a temporary script is necessary for development or validation, create it inside `temp_scripts/` only. After successful execution, promote it into the MCP server as an appropriate tested tool before deleting it, unless the user asks to retain it.
+3. Register promoted tools with `@mcp.tool()` and document them in the MCP README when applicable.
 
 ## Local RAG synchronization
 

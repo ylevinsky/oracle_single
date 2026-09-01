@@ -36,6 +36,8 @@
       "privilege_mode": "SYSDBA",
       "sslmode": "disable",
       "credential_target": "OracleMCP/Repair-Center/SYS",
+      "ssh_username": "brillix",
+      "ssh_credential_target": "SSH/es-db2-sp.sp.essencesecurity.com",
       "password": "ProdE$$ence2023",
       "purpose": "Read-only Oracle metadata inspection, including schemas and custom jobs",
       "status": "unverified"
@@ -63,6 +65,8 @@
       "privilege_mode": "SYSDBA",
       "sslmode": "disable",
       "credential_target": "OracleMCP/HUN/SYS",
+      "ssh_username": "brillix",
+      "ssh_credential_target": "SSH/es-db2-zl.hun.essencesecurity.com",
       "purpose": "Read-only Oracle metadata inspection for Hungary",
       "status": "unverified"
     },
@@ -76,6 +80,8 @@
       "privilege_mode": "SYSDBA",
       "sslmode": "disable",
       "credential_target": "OracleMCP/FLEX/SYS",
+      "ssh_username": "brillix",
+      "ssh_credential_target": "SSH/es-db2-fl.esi-fl-il.com",
       "purpose": "Read-only Oracle metadata inspection for Ofakim",
       "status": "unverified"
     },
@@ -89,6 +95,8 @@
       "privilege_mode": "SYSDBA",
       "sslmode": "disable",
       "credential_target": "OracleMCP/PH/SYS",
+      "ssh_username": "brillix11@essencesecurity.com",
+      "ssh_credential_target": "SSH/ionics-oracle.essencesecurity.com",
       "purpose": "Read-only Oracle metadata inspection for PH",
       "status": "unverified"
     },

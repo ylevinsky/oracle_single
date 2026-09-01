@@ -4,7 +4,12 @@ import hashlib
 import json
 import ctypes
 import ctypes.wintypes
+from datetime import datetime, timezone
+import re
 import secrets
+import stat
+import subprocess
+import sys
 import threading
 import time
 from pathlib import Path
@@ -202,6 +207,11 @@ def _connect(connection: dict[str, Any]) -> oracledb.Connection:
     return oracledb.connect(**kwargs)
 
 
+def _connect_saved_oracle(connection_name: str) -> oracledb.Connection:
+    """Connect to a saved Oracle target using its current credentials."""
+    return _connect(_read_connection(connection_name))
+
+
 def _json_value(value: Any) -> Any:
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
@@ -235,6 +245,7 @@ def _open_ssh(connection_name: str) -> paramiko.SSHClient:
     connection = _read_connection(connection_name)
     username, target, port = _ssh_settings(connection_name, connection)
     client = paramiko.SSHClient()
+    client.load_system_host_keys()
     client.set_missing_host_key_policy(paramiko.RejectPolicy())
     client.connect(
         hostname=str(connection["host"]),
@@ -294,6 +305,117 @@ def run_ssh_command(
         }
     finally:
         client.close()
+
+
+@mcp.tool()
+def collect_saved_backup_scripts(
+    connection_name: str,
+    remote_root: str = "F:/Backup/Oracle/RMAN",
+    local_root: str = "rman/scripts",
+) -> dict[str, Any]:
+    """Copy remote Oracle backup, dependency, and restore scripts into a site folder."""
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+", connection_name):
+        raise ValueError("connection_name must be a saved target name")
+    if not remote_root or not local_root:
+        raise ValueError("remote_root and local_root must not be empty")
+    client = _open_ssh(connection_name)
+    destination = REPOSITORY_ROOT / local_root / connection_name
+    destination.mkdir(parents=True, exist_ok=True)
+    copied: list[str] = []
+    try:
+        sftp = client.open_sftp()
+        try:
+            root_stat = sftp.stat(remote_root)
+            if not stat.S_ISDIR(root_stat.st_mode):
+                relative = Path(remote_root).name
+                target = destination / relative
+                sftp.get(remote_root, str(target))
+                copied.append(str(target.relative_to(REPOSITORY_ROOT)))
+                return {"connection_name": connection_name, "remote_root": remote_root, "local_root": str(destination), "copied": copied}
+
+            def walk(path: str) -> None:
+                for entry in sftp.listdir_attr(path):
+                    remote = f"{path.rstrip('/\\')}/{entry.filename}"
+                    if stat.S_ISDIR(entry.st_mode):
+                        walk(remote)
+                    elif Path(entry.filename).suffix.lower() in {".bat", ".cmd", ".ps1", ".sql", ".vbs", ".xml"}:
+                        relative = remote[len(remote_root):].lstrip("/\\").replace("\\", "/")
+                        target = destination / Path(relative)
+                        target.parent.mkdir(parents=True, exist_ok=True)
+                        sftp.get(remote, str(target))
+                        copied.append(str(target.relative_to(REPOSITORY_ROOT)))
+            walk(remote_root)
+        finally:
+            sftp.close()
+    finally:
+        client.close()
+    return {"connection_name": connection_name, "remote_root": remote_root, "local_root": str(destination), "copied": copied}
+
+
+def _powershell_literal(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
+
+
+def _remote_error_lines(connection_name: str, paths_expression: str, tail: int) -> dict[str, Any]:
+    patterns = r"(?i)error|ora-\d+|rman-\d+|failed|failure|fatal|exception|aborted|no space"
+    command = (
+        "$ErrorActionPreference='Stop'; "
+        f"$rx={_powershell_literal(patterns)}; $files=@({paths_expression}); $out=@(); "
+        "foreach($f in $files) { if(Test-Path -LiteralPath $f -PathType Leaf) { "
+        f"$n=0; Get-Content -LiteralPath $f -Tail {tail} | ForEach-Object {{ $n++; "
+        "if($_ -match $rx) { $out += [pscustomobject]@{file=$f; line=$n; text=$_} } } } } "
+        "$out | ConvertTo-Json -Compress -Depth 3"
+    )
+    client = _open_ssh(connection_name)
+    try:
+        _, stdout, stderr = client.exec_command(
+            "powershell -NoProfile -NonInteractive -Command " + _powershell_literal(command),
+            timeout=60, get_pty=False,
+        )
+        status = stdout.channel.recv_exit_status()
+        raw = stdout.read().decode("utf-8", errors="replace").strip()
+        err = stderr.read().decode("utf-8", errors="replace").strip()
+        if status:
+            raise RuntimeError(err or raw or f"remote command exited {status}")
+        parsed = json.loads(raw) if raw else []
+        matches = parsed if isinstance(parsed, list) else [parsed]
+        return {"matches": matches, "match_count": len(matches)}
+    finally:
+        client.close()
+
+
+@mcp.tool()
+def inspect_saved_alert_log_errors(connection_name: str, last_records: int = 500) -> dict[str, Any]:
+    """Check the saved target's remote Oracle alert log for errors."""
+    if not 1 <= last_records <= 5000:
+        raise ValueError("last_records must be between 1 and 5000")
+    diagnostics = inspect_saved_oracle_diagnostics(connection_name)
+    alert_log = diagnostics.get("text_alert_log")
+    if not alert_log:
+        raise ValueError("Oracle did not return a text alert-log path")
+    result = _remote_error_lines(connection_name, _powershell_literal(str(alert_log)), last_records)
+    return {"connection_name": connection_name, "log_path": str(alert_log),
+            "records_checked": last_records,
+            "status": "errors_found" if result["match_count"] else "no_errors_found", **result}
+
+
+@mcp.tool()
+def inspect_saved_backup_log_errors(connection_name: str, remote_log_root: str = "F:/Backup/Oracle/RMAN", last_records: int = 500) -> dict[str, Any]:
+    """Scan recent remote Oracle/RMAN backup logs and report errors."""
+    if not remote_log_root.strip():
+        raise ValueError("remote_log_root must not be empty")
+    if not 1 <= last_records <= 5000:
+        raise ValueError("last_records must be between 1 and 5000")
+    root = _powershell_literal(remote_log_root)
+    paths = (f"Get-ChildItem -LiteralPath {root} -Recurse -File -ErrorAction Stop "
+             "| Where-Object {$_.Extension -in '.log','.out','.txt'} "
+             "| Sort-Object LastWriteTime -Descending | Select-Object -First 20 "
+             "| ForEach-Object {$_.FullName}")
+    result = _remote_error_lines(connection_name, paths, last_records)
+    return {"connection_name": connection_name, "remote_log_root": remote_log_root,
+            "files_considered": "up to 20 newest .log/.out/.txt files",
+            "records_checked_per_file": last_records,
+            "status": "errors_found" if result["match_count"] else "no_errors_found", **result}
 
 
 @mcp.tool()
@@ -514,6 +636,23 @@ def inspect_local_rag_database() -> dict[str, Any]:
         "rag_chunks_table": str(row[3]) if row[3] else None,
         "healthy": bool(row[1] and row[2] and row[3]),
     }
+
+
+@mcp.tool()
+def ingest_local_rag_markdown(path: str = "local_rag") -> dict[str, Any]:
+    """Ingest Markdown files into the repository PostgreSQL RAG through its CLI."""
+    source = (REPOSITORY_ROOT / path).resolve()
+    if REPOSITORY_ROOT not in source.parents and source != REPOSITORY_ROOT:
+        raise ValueError("path must remain inside the repository")
+    if source.is_file() and source.suffix.lower() != ".md":
+        raise ValueError("path must be a Markdown file or directory")
+    if not source.exists():
+        raise ValueError(f"path does not exist: {path}")
+    command = [sys.executable, str(REPOSITORY_ROOT / "local_rag" / "rag.py"), "ingest", str(source)]
+    completed = subprocess.run(command, cwd=str(REPOSITORY_ROOT), capture_output=True, text=True, timeout=300)
+    if completed.returncode:
+        raise RuntimeError((completed.stderr or completed.stdout).strip() or "RAG ingestion failed")
+    return {"path": str(source), "output": completed.stdout.strip()}
 
 
 @mcp.tool()
@@ -810,7 +949,7 @@ def expand_saved_tablespace(connection_name: str, tablespace_name: str, addition
             while remaining_gib:
                 file_gib = min(remaining_gib, max_file_gib)
                 if omf_destination:
-                    datafile_clause = ""
+                    datafile_clause = " DATAFILE"
                 else:
                     datafile_clause = (
                         f" DATAFILE '{directory}{separator}{safe_name.lower()}_capacity_{suffix}_{sequence}.dbf'"

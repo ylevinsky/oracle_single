@@ -2903,6 +2903,38 @@ def enable_saved_ash(connection_name: str) -> dict[str, object]:
     finally:
         connection.close()
 
+
+@mcp.tool()
+def inspect_saved_pga_configuration(connection_name: str) -> dict[str, object]:
+    """Read current PGA parameters, runtime PGA statistics, and process limits."""
+    connection = _connect_saved_oracle(connection_name)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "select name, value from v$parameter where name in "
+                "('pga_aggregate_target', 'pga_aggregate_limit', "
+                "'memory_target', 'memory_max_target') order by name"
+            )
+            parameters = {str(name): str(value) if value is not None else None
+                          for name, value in cursor}
+            cursor.execute(
+                "select name, value, unit from v$pgastat where name in "
+                "('aggregate PGA target parameter', 'aggregate PGA auto target', "
+                "'total PGA allocated', 'total PGA inuse', 'maximum PGA allocated', "
+                "'over allocation count') order by name"
+            )
+            pga_statistics = _fetch_dicts(cursor)
+            cursor.execute(
+                "select resource_name, current_utilization, max_utilization, limit_value "
+                "from v$resource_limit where resource_name in ('processes', 'sessions') "
+                "order by resource_name"
+            )
+            resource_limits = _fetch_dicts(cursor)
+        return {"connection": connection_name, "parameters": parameters,
+                "pga_statistics": pga_statistics, "resource_limits": resource_limits}
+    finally:
+        connection.close()
+
 def inspect_saved_table_indexes(
     connection_name: str, tables: list[dict[str, object]]
 ) -> dict[str, object]:

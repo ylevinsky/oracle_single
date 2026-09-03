@@ -2572,6 +2572,165 @@ def inspect_saved_sys_session_sql(connection_name: str) -> dict[str, object]:
     finally:
         connection.close()
 
+@mcp.tool()
+def generate_saved_awr_report(
+    connection_name: str,
+    begin_snap_id: int,
+    end_snap_id: int,
+    instance_number: int | None = None,
+    output_format: str = "text",
+) -> dict[str, object]:
+    """Generate a read-only AWR report for an explicit snapshot interval."""
+    if begin_snap_id < 1 or end_snap_id <= begin_snap_id:
+        raise ValueError("end_snap_id must be greater than begin_snap_id, and both must be positive.")
+    if instance_number is not None and instance_number < 1:
+        raise ValueError("instance_number must be positive when supplied.")
+    report_format = output_format.strip().lower()
+    if report_format not in {"text", "html"}:
+        raise ValueError("output_format must be 'text' or 'html'.")
+    connection = _connect_saved_oracle(connection_name)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("select dbid, instance_number from v$database cross join v$instance")
+            dbid, detected_instance = cursor.fetchone()
+            inst = instance_number or int(detected_instance)
+            cursor.execute(
+                "select count(*) from dba_hist_snapshot where dbid = :dbid and instance_number = :inst "
+                "and snap_id in (:begin_snap, :end_snap)",
+                {"dbid": int(dbid), "inst": inst, "begin_snap": begin_snap_id, "end_snap": end_snap_id},
+            )
+            if int(cursor.fetchone()[0]) != 2:
+                raise ValueError("Both snapshot IDs must exist for the selected database and instance.")
+            function_name = "awr_report_html" if report_format == "html" else "awr_report_text"
+            cursor.execute(
+                f"select output from table(dbms_workload_repository.{function_name}(:dbid, :inst, :begin_snap, :end_snap))",
+                {"dbid": int(dbid), "inst": inst, "begin_snap": begin_snap_id, "end_snap": end_snap_id},
+            )
+            report = "".join(str(row[0]) for row in cursor)
+        report_dir = Path(__file__).resolve().parent.parent / "awr_reports"
+        report_dir.mkdir(parents=True, exist_ok=True)
+        safe_name = re.sub(r"[^A-Za-z0-9_.-]+", "_", connection_name).strip("._") or "oracle"
+        report_path = report_dir / f"awr_{safe_name}_{begin_snap_id}_{end_snap_id}.{report_format}"
+        report_path.write_text(report, encoding="utf-8")
+        return {"connection": connection_name, "dbid": int(dbid), "instance_number": inst,
+                "begin_snap_id": begin_snap_id, "end_snap_id": end_snap_id,
+                "output_format": report_format, "report_path": str(report_path),
+                "report_bytes": len(report.encode("utf-8"))}
+    finally:
+        connection.close()
+
+
+@mcp.tool()
+def generate_saved_awr_report_for_times(
+    connection_name: str,
+    start_time: str,
+    end_time: str,
+    output_format: str = "text",
+) -> dict[str, object]:
+    """Generate an AWR report by selecting snapshots around an ISO time range."""
+    try:
+        start = datetime.fromisoformat(start_time.strip().replace("Z", "+00:00"))
+        end = datetime.fromisoformat(end_time.strip().replace("Z", "+00:00"))
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise ValueError("start_time and end_time must be ISO timestamps.") from exc
+    if start.tzinfo is not None:
+        start = start.astimezone(timezone.utc).replace(tzinfo=None)
+    if end.tzinfo is not None:
+        end = end.astimezone(timezone.utc).replace(tzinfo=None)
+    if end <= start:
+        raise ValueError("end_time must be later than start_time.")
+    if end - start > timedelta(days=7):
+        raise ValueError("The AWR interval cannot exceed seven days.")
+
+    connection = _connect_saved_oracle(connection_name)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "select snap_id, instance_number, begin_interval_time "
+                "from dba_hist_snapshot where begin_interval_time <= :start_time "
+                "order by begin_interval_time desc fetch first 1 rows only",
+                {"start_time": start},
+            )
+            begin_row = cursor.fetchone()
+            cursor.execute(
+                "select snap_id, instance_number, end_interval_time "
+                "from dba_hist_snapshot where end_interval_time >= :end_time "
+                "order by end_interval_time fetch first 1 rows only",
+                {"end_time": end},
+            )
+            end_row = cursor.fetchone()
+        if begin_row is None or end_row is None:
+            raise ValueError("No AWR snapshots bracket the requested time range.")
+        begin_snap, begin_instance, begin_boundary = begin_row
+        end_snap, end_instance, end_boundary = end_row
+        if int(begin_instance) != int(end_instance):
+            raise ValueError("The requested time range spans different Oracle instances.")
+        if int(end_snap) <= int(begin_snap):
+            raise ValueError("The requested time range does not contain two ordered AWR snapshots.")
+    finally:
+        connection.close()
+
+    report = generate_saved_awr_report(
+        connection_name=connection_name,
+        begin_snap_id=int(begin_snap),
+        end_snap_id=int(end_snap),
+        instance_number=int(begin_instance),
+        output_format=output_format,
+    )
+    report.update({
+        "requested_start_time": start.isoformat(),
+        "requested_end_time": end.isoformat(),
+        "begin_snapshot_time": _json_value(begin_boundary),
+        "end_snapshot_time": _json_value(end_boundary),
+    })
+    return report
+
+
+@mcp.tool()
+def inspect_saved_awr_snapshots(
+    connection_name: str,
+    start_time: str,
+    end_time: str,
+    limit: int = 20,
+) -> dict[str, object]:
+    """List AWR snapshots and startup boundaries around an ISO time range."""
+    try:
+        start = datetime.fromisoformat(start_time.strip().replace("Z", "+00:00"))
+        end = datetime.fromisoformat(end_time.strip().replace("Z", "+00:00"))
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise ValueError("start_time and end_time must be ISO timestamps.") from exc
+    if start.tzinfo is not None:
+        start = start.astimezone(timezone.utc).replace(tzinfo=None)
+    if end.tzinfo is not None:
+        end = end.astimezone(timezone.utc).replace(tzinfo=None)
+    if end <= start:
+        raise ValueError("end_time must be later than start_time.")
+    if end - start > timedelta(days=7):
+        raise ValueError("The snapshot inspection interval cannot exceed seven days.")
+    if not 1 <= limit <= 100:
+        raise ValueError("limit must be between 1 and 100.")
+
+    connection = _connect_saved_oracle(connection_name)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "select * from ("
+                "select snap_id, instance_number, begin_interval_time, "
+                "end_interval_time, startup_time "
+                "from dba_hist_snapshot "
+                "where end_interval_time >= :start_time "
+                "and begin_interval_time <= :end_time "
+                "order by begin_interval_time"
+                ") where rownum <= :limit",
+                {"start_time": start, "end_time": end, "limit": limit},
+            )
+            snapshots = _fetch_dicts(cursor)
+        return {"connection": connection_name, "start_time": start.isoformat(),
+                "end_time": end.isoformat(), "snapshots": snapshots}
+    finally:
+        connection.close()
+
+
 def inspect_saved_top_pga_consumers(connection_name: str, limit: int = 20) -> dict[str, object]:
     """List current Oracle user sessions with the largest allocated PGA memory.
 

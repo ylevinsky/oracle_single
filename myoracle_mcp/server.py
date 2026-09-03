@@ -2917,6 +2917,8 @@ def inspect_saved_pga_configuration(connection_name: str) -> dict[str, object]:
             )
             parameters = {str(name): str(value) if value is not None else None
                           for name, value in cursor}
+            cursor.execute("select name, value from v$sga order by name")
+            sga = _fetch_dicts(cursor)
             cursor.execute(
                 "select name, value, unit from v$pgastat where name in "
                 "('aggregate PGA target parameter', 'aggregate PGA auto target', "
@@ -2931,7 +2933,8 @@ def inspect_saved_pga_configuration(connection_name: str) -> dict[str, object]:
             )
             resource_limits = _fetch_dicts(cursor)
         return {"connection": connection_name, "parameters": parameters,
-                "pga_statistics": pga_statistics, "resource_limits": resource_limits}
+                "sga": sga, "pga_statistics": pga_statistics,
+                "resource_limits": resource_limits}
     finally:
         connection.close()
 

@@ -2656,6 +2656,24 @@ def inspect_saved_ash_client_attribution(
                 for session_type, count in cursor
             }
             cursor.execute(
+                "select count(*), min(begin_interval_time), max(end_interval_time) "
+                "from dba_hist_snapshot"
+            )
+            snapshot_count, earliest_snapshot, latest_snapshot = cursor.fetchone()
+            cursor.execute(
+                "select snap_interval, retention from dba_hist_wr_control"
+            )
+            wr_control = _fetch_dicts(cursor)[0]
+            cursor.execute(
+                "select name, value from v$parameter where name in "
+                "('statistics_level', 'control_management_pack_access') "
+                "order by name"
+            )
+            parameters = {
+                str(name): str(value) if value is not None else None
+                for name, value in cursor
+            }
+            cursor.execute(
                 "select * from ("
                 "select u.username, h.machine, h.program, h.module, h.action, h.sql_id, "
                 "count(*) sample_count, count(distinct h.session_id) session_count, "
@@ -2678,6 +2696,11 @@ def inspect_saved_ash_client_attribution(
             "ash_earliest_sample_time": _json_value(earliest_sample),
             "ash_latest_sample_time": _json_value(latest_sample),
             "ash_session_type_counts": session_type_counts,
+            "awr_snapshot_count": int(snapshot_count or 0),
+            "awr_earliest_snapshot_time": _json_value(earliest_snapshot),
+            "awr_latest_snapshot_time": _json_value(latest_snapshot),
+            "awr_workload_repository_control": wr_control,
+            "collection_parameters": parameters,
             "rows": rows,
             "note": "ASH sample counts represent observed active-session activity, not exact session creation counts.",
         }

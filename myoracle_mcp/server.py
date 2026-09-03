@@ -4,7 +4,7 @@ import hashlib
 import json
 import ctypes
 import ctypes.wintypes
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import re
 import secrets
 import stat
@@ -2604,6 +2604,66 @@ def inspect_saved_top_pga_consumers(connection_name: str, limit: int = 20) -> di
                 for sid, serial, username, status, module, action, sql_id, event, spid, used, allocated, maximum in cursor
             ]
         return {"connection": connection_name, "sessions": sessions}
+    finally:
+        connection.close()
+
+
+@mcp.tool()
+def inspect_saved_ash_client_attribution(
+    connection_name: str,
+    start_time: str,
+    end_time: str,
+    limit: int = 20,
+) -> dict[str, object]:
+    """Attribute historical foreground activity to users and client machines.
+
+    The read-only report groups ASH samples by Oracle user, machine, program,
+    module, action, and SQL ID. ``start_time`` and ``end_time`` must be ISO
+    timestamps; the interval is limited to seven days and ``limit`` is capped
+    at 100 rows. ASH is sampled activity, so counts indicate observed activity
+    rather than an exact session-creation count.
+    """
+    try:
+        start = datetime.fromisoformat(start_time.strip().replace("Z", "+00:00"))
+        end = datetime.fromisoformat(end_time.strip().replace("Z", "+00:00"))
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise ValueError("start_time and end_time must be ISO timestamps.") from exc
+    if start.tzinfo is not None:
+        start = start.astimezone(timezone.utc).replace(tzinfo=None)
+    if end.tzinfo is not None:
+        end = end.astimezone(timezone.utc).replace(tzinfo=None)
+    if end <= start:
+        raise ValueError("end_time must be later than start_time.")
+    if end - start > timedelta(days=7):
+        raise ValueError("The ASH interval cannot exceed seven days.")
+    if not 1 <= limit <= 100:
+        raise ValueError("limit must be between 1 and 100.")
+
+    connection = _connect_saved_oracle(connection_name)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "select * from ("
+                "select u.username, h.machine, h.program, h.module, h.action, h.sql_id, "
+                "count(*) sample_count, count(distinct h.session_id) session_count, "
+                "min(h.sample_time) first_sample_time, max(h.sample_time) last_sample_time "
+                "from dba_hist_active_sess_history h "
+                "left join dba_users u on u.user_id = h.user_id "
+                "where h.sample_time >= :start_time and h.sample_time < :end_time "
+                "and h.session_type = 'FOREGROUND' "
+                "group by u.username, h.machine, h.program, h.module, h.action, h.sql_id "
+                "order by count(*) desc, count(distinct h.session_id) desc"
+                ") where rownum <= :limit",
+                {"start_time": start, "end_time": end, "limit": limit},
+            )
+            rows = _fetch_dicts(cursor)
+        return {
+            "connection": connection_name,
+            "start_time": start.isoformat(),
+            "end_time": end.isoformat(),
+            "rows": rows,
+            "note": "ASH sample counts represent observed active-session activity, not exact session creation counts.",
+        }
     finally:
         connection.close()
 

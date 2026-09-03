@@ -2707,6 +2707,43 @@ def inspect_saved_ash_client_attribution(
     finally:
         connection.close()
 
+
+@mcp.tool()
+def enable_saved_ash(connection_name: str) -> dict[str, object]:
+    """Enable Oracle Diagnostics Pack access for ASH without restarting Oracle.
+
+    This changes only CONTROL_MANAGEMENT_PACK_ACCESS to DIAGNOSTIC with
+    SCOPE=BOTH. The caller is responsible for confirming the required Oracle
+    Diagnostics Pack licensing before invoking this operation.
+    """
+    connection = _connect_saved_oracle(connection_name)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "select value from v$parameter "
+                "where name = 'control_management_pack_access'"
+            )
+            before = cursor.fetchone()[0]
+            cursor.execute(
+                "alter system set control_management_pack_access = 'DIAGNOSTIC' "
+                "scope = both"
+            )
+            cursor.execute(
+                "select value from v$parameter "
+                "where name = 'control_management_pack_access'"
+            )
+            after = cursor.fetchone()[0]
+        return {
+            "connection": connection_name,
+            "parameter": "control_management_pack_access",
+            "before": str(before) if before is not None else None,
+            "after": str(after) if after is not None else None,
+            "scope": "BOTH",
+            "database_restart": False,
+        }
+    finally:
+        connection.close()
+
 def inspect_saved_table_indexes(
     connection_name: str, tables: list[dict[str, object]]
 ) -> dict[str, object]:

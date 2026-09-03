@@ -2643,6 +2643,19 @@ def inspect_saved_ash_client_attribution(
     try:
         with connection.cursor() as cursor:
             cursor.execute(
+                "select count(*), min(sample_time), max(sample_time) "
+                "from dba_hist_active_sess_history"
+            )
+            total_samples, earliest_sample, latest_sample = cursor.fetchone()
+            cursor.execute(
+                "select session_type, count(*) from dba_hist_active_sess_history "
+                "group by session_type order by session_type"
+            )
+            session_type_counts = {
+                str(session_type) if session_type else "(null)": int(count)
+                for session_type, count in cursor
+            }
+            cursor.execute(
                 "select * from ("
                 "select u.username, h.machine, h.program, h.module, h.action, h.sql_id, "
                 "count(*) sample_count, count(distinct h.session_id) session_count, "
@@ -2661,6 +2674,10 @@ def inspect_saved_ash_client_attribution(
             "connection": connection_name,
             "start_time": start.isoformat(),
             "end_time": end.isoformat(),
+            "ash_total_samples": int(total_samples or 0),
+            "ash_earliest_sample_time": _json_value(earliest_sample),
+            "ash_latest_sample_time": _json_value(latest_sample),
+            "ash_session_type_counts": session_type_counts,
             "rows": rows,
             "note": "ASH sample counts represent observed active-session activity, not exact session creation counts.",
         }

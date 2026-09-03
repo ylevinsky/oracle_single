@@ -352,6 +352,49 @@ def collect_saved_backup_scripts(
     return {"connection_name": connection_name, "remote_root": remote_root, "local_root": str(destination), "copied": copied}
 
 
+@mcp.tool()
+def upload_files_to_saved_host(
+    connection_name: str,
+    local_files: list[str],
+    remote_directory: str,
+) -> dict[str, Any]:
+    """Upload explicitly selected repository files to a saved SSH host directory."""
+    if not local_files or not remote_directory:
+        raise ValueError("local_files and remote_directory are required")
+    remote = remote_directory.replace("\\", "/")
+    if not re.fullmatch(r"[A-Za-z]:/[^<>:\"|?*]+", remote):
+        raise ValueError("remote_directory must be an absolute Windows drive path")
+    repo = (REPOSITORY_ROOT.parent / "ORCL").resolve()
+    sources = []
+    for relative in local_files:
+        source = (repo / relative).resolve()
+        if repo not in source.parents or not source.is_file():
+            raise ValueError(f"local file is outside ORCL or missing: {relative}")
+        sources.append(source)
+    client = _open_ssh(connection_name)
+    uploaded = []
+    try:
+        sftp = client.open_sftp()
+        try:
+            parts = remote.split("/")
+            current = parts[0]
+            for part in parts[1:]:
+                current = f"{current}/{part}"
+                try:
+                    sftp.stat(current)
+                except OSError:
+                    sftp.mkdir(current)
+            for source in sources:
+                target = f"{remote.rstrip('/')}/{source.name}"
+                sftp.put(str(source), target)
+                uploaded.append(target)
+        finally:
+            sftp.close()
+    finally:
+        client.close()
+    return {"connection_name": connection_name, "remote_directory": remote, "uploaded": uploaded}
+
+
 def _powershell_literal(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
 
@@ -2935,6 +2978,200 @@ def inspect_saved_pga_configuration(connection_name: str) -> dict[str, object]:
         return {"connection": connection_name, "parameters": parameters,
                 "sga": sga, "pga_statistics": pga_statistics,
                 "resource_limits": resource_limits}
+    finally:
+        connection.close()
+
+
+@mcp.tool()
+def set_saved_pga_parameters(
+    connection_name: str,
+    target_gib: int,
+    limit_gib: int,
+) -> dict[str, object]:
+    """Set PGA target and limit in GiB without restarting the database."""
+    if not 1 <= target_gib <= 128 or not 1 <= limit_gib <= 128:
+        raise ValueError("target_gib and limit_gib must be between 1 and 128.")
+    if limit_gib < target_gib * 2:
+        raise ValueError("limit_gib must be at least twice target_gib.")
+
+    connection = _connect_saved_oracle(connection_name)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "select name, value from v$parameter where name in "
+                "('pga_aggregate_target', 'pga_aggregate_limit') order by name"
+            )
+            before = {str(name): str(value) if value is not None else None
+                      for name, value in cursor}
+            cursor.execute(
+                f"alter system set pga_aggregate_limit = '{limit_gib}G' scope = both"
+            )
+            cursor.execute(
+                f"alter system set pga_aggregate_target = '{target_gib}G' scope = both"
+            )
+            cursor.execute(
+                "select name, value from v$parameter where name in "
+                "('pga_aggregate_target', 'pga_aggregate_limit') order by name"
+            )
+            after = {str(name): str(value) if value is not None else None
+                     for name, value in cursor}
+        return {"connection": connection_name, "before": before, "after": after,
+                "scope": "BOTH", "database_restart": False}
+    finally:
+        connection.close()
+
+@mcp.tool()
+def inspect_saved_user_connection_limit(
+    connection_name: str,
+    username: str,
+) -> dict[str, object]:
+    """Read one Oracle user's profile, connection limit, and active sessions."""
+    safe_username = str(username).strip().upper()
+    if not re.fullmatch(r"[A-Z][A-Z0-9_$#]{0,127}", safe_username):
+        raise ValueError("username must be a simple Oracle identifier.")
+    connection = _connect_saved_oracle(connection_name)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "select username, profile, account_status from dba_users "
+                "where username = :username", {"username": safe_username}
+            )
+            user_row = cursor.fetchone()
+            if user_row is None:
+                raise ValueError(f"Oracle user '{safe_username}' was not found.")
+            user = {"username": user_row[0], "profile": user_row[1],
+                    "account_status": user_row[2]}
+            cursor.execute(
+                "select profile, limit from dba_profiles "
+                "where profile = :profile and resource_name = 'SESSIONS_PER_USER'",
+                {"profile": user_row[1]}
+            )
+            profile_row = cursor.fetchone()
+            cursor.execute(
+                "select count(*) from v$session where username = :username",
+                {"username": safe_username}
+            )
+            active_sessions = int(cursor.fetchone()[0])
+        return {"connection": connection_name, "user": user,
+                "sessions_per_user": profile_row[1] if profile_row else None,
+                "active_sessions": active_sessions}
+    finally:
+        connection.close()
+
+
+@mcp.tool()
+def set_saved_user_connection_limit(
+    connection_name: str,
+    username: str,
+    sessions_per_user: int,
+) -> dict[str, object]:
+    """Limit one Oracle user through a dedicated profile without disconnecting sessions."""
+    safe_username = str(username).strip().upper()
+    if not re.fullmatch(r"[A-Z][A-Z0-9_$#]{0,127}", safe_username):
+        raise ValueError("username must be a simple Oracle identifier.")
+    if not 1 <= sessions_per_user <= 1000000:
+        raise ValueError("sessions_per_user must be between 1 and 1000000.")
+    profile_name = f"MCP_{safe_username}_SESSIONS"
+    if len(profile_name) > 30:
+        raise ValueError("username is too long for the generated profile name.")
+
+    connection = _connect_saved_oracle(connection_name)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "select profile from dba_users where username = :username",
+                {"username": safe_username}
+            )
+            user_row = cursor.fetchone()
+            if user_row is None:
+                raise ValueError(f"Oracle user '{safe_username}' was not found.")
+            before_profile = str(user_row[0])
+            cursor.execute(
+                "select limit from dba_profiles where profile = :profile "
+                "and resource_name = 'SESSIONS_PER_USER'",
+                {"profile": profile_name}
+            )
+            existing = cursor.fetchone()
+            if existing is None:
+                cursor.execute(
+                    f"create profile {profile_name} limit sessions_per_user {sessions_per_user}"
+                )
+            else:
+                cursor.execute(
+                    f"alter profile {profile_name} limit sessions_per_user {sessions_per_user}"
+                )
+            cursor.execute(f"alter user {safe_username} profile {profile_name}")
+            cursor.execute(
+                "select profile from dba_users where username = :username",
+                {"username": safe_username}
+            )
+            after_profile = str(cursor.fetchone()[0])
+            cursor.execute(
+                "select limit from dba_profiles where profile = :profile "
+                "and resource_name = 'SESSIONS_PER_USER'",
+                {"profile": profile_name}
+            )
+            after_limit = str(cursor.fetchone()[0])
+            cursor.execute(
+                "select count(*) from v$session where username = :username",
+                {"username": safe_username}
+            )
+            active_sessions = int(cursor.fetchone()[0])
+        return {"connection": connection_name, "username": safe_username,
+                "before_profile": before_profile, "after_profile": after_profile,
+                "profile": profile_name, "sessions_per_user": after_limit,
+                "active_sessions": active_sessions, "existing_sessions_disconnected": False}
+    finally:
+        connection.close()
+
+
+@mcp.tool()
+def inspect_saved_user_session_waits(
+    connection_name: str,
+    username: str,
+    limit: int = 20,
+) -> dict[str, object]:
+    """Read wait-state and blocking details for one Oracle user's sessions."""
+    safe_username = str(username).strip().upper()
+    if not re.fullmatch(r"[A-Z][A-Z0-9_$#]{0,127}", safe_username):
+        raise ValueError("username must be a simple Oracle identifier.")
+    if not 1 <= limit <= 100:
+        raise ValueError("limit must be between 1 and 100.")
+    connection = _connect_saved_oracle(connection_name)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "select status, state, wait_class, count(*) session_count "
+                "from v$session where username = :username "
+                "group by status, state, wait_class order by session_count desc",
+                {"username": safe_username},
+            )
+            wait_summary = _fetch_dicts(cursor)
+            cursor.execute(
+                "select * from (select s.sid, s.serial#, s.status, s.state, s.wait_class, s.event, "
+                "s.seconds_in_wait, s.blocking_instance, s.blocking_session, s.sql_id, "
+                "s.module, s.machine, q.sql_text "
+                "from v$session s left join v$sql q on q.sql_id = s.sql_id "
+                "and q.child_number = s.sql_child_number "
+                "where s.username = :username and s.state = 'WAITING' "
+                "and s.wait_class <> 'Idle' "
+                "order by seconds_in_wait desc nulls last) where rownum <= :limit",
+                {"username": safe_username, "limit": limit},
+            )
+            non_idle_waits = _fetch_dicts(cursor)
+            cursor.execute(
+                "select * from (select s.sid, s.serial#, s.status, s.state, s.wait_class, "
+                "s.event, s.seconds_in_wait, s.last_call_et, s.sql_id, s.module, s.machine, "
+                "q.sql_text from v$session s left join v$sql q on q.sql_id = s.sql_id "
+                "and q.child_number = s.sql_child_number where s.username = :username "
+                "and s.status = 'ACTIVE' order by s.last_call_et desc nulls last) "
+                "where rownum <= :limit",
+                {"username": safe_username, "limit": limit},
+            )
+            active_queries = _fetch_dicts(cursor)
+        return {"connection": connection_name, "username": safe_username,
+                "wait_summary": wait_summary, "non_idle_waits": non_idle_waits,
+                "active_queries": active_queries}
     finally:
         connection.close()
 

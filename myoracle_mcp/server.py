@@ -759,6 +759,92 @@ def inspect_all_saved_database_space() -> dict[str, Any]:
 
 
 @mcp.tool()
+def daily_rutione_check(
+    minimum_free_percent: float = 15.0,
+) -> dict[str, Any]:
+    """Check job status and tablespace capacity for every saved Oracle target.
+
+    This is an on-demand, read-only summary.  It includes non-Oracle-maintained
+    Scheduler and legacy jobs, and flags tablespaces below the requested free
+    percentage or with no remaining AUTOEXTEND headroom.
+    """
+    if not 0 <= minimum_free_percent <= 100:
+        raise ValueError("minimum_free_percent must be between 0 and 100")
+
+    targets: list[dict[str, Any]] = []
+    for connection_name in connections_list():
+        item: dict[str, Any] = {"connection_name": connection_name}
+        try:
+            jobs = list_custom_jobs(connection_name)
+            space = inspect_saved_database_space(connection_name)
+            job_issues = [
+                {
+                    "type": "scheduler_job",
+                    "owner": job.get("owner"),
+                    "job_name": job.get("job_name"),
+                    "state": job.get("state"),
+                    "enabled": job.get("enabled"),
+                    "failure_count": job.get("failure_count"),
+                }
+                for job in jobs["scheduler_jobs"]
+                if str(job.get("state", "")).upper() in {"BROKEN", "FAILED", "STOPPED"}
+                or str(job.get("enabled", "")).upper() in {"FALSE", "NO"}
+                or int(job.get("failure_count") or 0) > 0
+            ]
+            job_issues.extend(
+                {
+                    "type": "legacy_job",
+                    "schema_user": job.get("schema_user"),
+                    "job": job.get("job"),
+                    "broken": job.get("broken"),
+                    "failures": job.get("failures"),
+                }
+                for job in jobs["legacy_jobs"]
+                if str(job.get("broken", "")).upper() in {"Y", "YES", "TRUE"}
+                or int(job.get("failures") or 0) > 0
+            )
+            space_issues = [
+                {
+                    **tablespace,
+                    "issue": (
+                        "free_percent_below_threshold"
+                        if tablespace["free_percent"] < minimum_free_percent
+                        else "no_autoextend_headroom"
+                    ),
+                }
+                for tablespace in space["tablespaces"]
+                if tablespace["free_percent"] < minimum_free_percent
+                or (
+                    tablespace["autoextend_files"] > 0
+                    and tablespace["max_bytes"] <= tablespace["allocated_bytes"]
+                )
+            ]
+            item.update({
+                "status": "ok" if not job_issues and not space_issues else "issues",
+                "jobs": jobs,
+                "space": space,
+                "job_issues": job_issues,
+                "space_issues": space_issues,
+            })
+        except Exception as exc:
+            item.update({
+                "status": "failed",
+                "error": f"{type(exc).__name__}: {exc}",
+            })
+        targets.append(item)
+
+    return {
+        "check": "daily_rutione_check",
+        "minimum_free_percent": minimum_free_percent,
+        "target_count": len(targets),
+        "ok_count": sum(item["status"] == "ok" for item in targets),
+        "issue_count": sum(item["status"] == "issues" for item in targets),
+        "failed_count": sum(item["status"] == "failed" for item in targets),
+        "targets": targets,
+    }
+
+
+@mcp.tool()
 def inspect_local_rag_database() -> dict[str, Any]:
     """Check local RAG PostgreSQL, pgvector, and required tables."""
     connection = _read_connection("local_rag")

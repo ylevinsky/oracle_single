@@ -1,0 +1,1 @@
+forfiles -p C:\app\coronys\diag\rdbms\flex\flex\trace -s -m *.tr* -d -20 -c "CMD /C del @FILE"

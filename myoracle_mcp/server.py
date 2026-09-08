@@ -284,17 +284,54 @@ def check_ssh_connectivity(connection_name: str) -> dict[str, Any]:
 def run_ssh_command(
     connection_name: str, command: str, timeout_seconds: int = 30
 ) -> dict[str, Any]:
-    """Run one explicitly supplied remote SSH command and return its output."""
+    """Run one explicitly supplied remote SSH command and return its output.
+
+    The timeout supports long-running backup and Data Pump operations up to
+    ten hours.
+    """
     command = command.strip()
     if not command:
         raise ValueError("command must not be empty")
-    if not 1 <= timeout_seconds <= 300:
-        raise ValueError("timeout_seconds must be between 1 and 300")
+    if not 1 <= timeout_seconds <= 36_000:
+        raise ValueError("timeout_seconds must be between 1 and 36000")
     client = _open_ssh(connection_name)
     try:
         stdin, stdout, stderr = client.exec_command(
             command, timeout=timeout_seconds, get_pty=False
         )
+        exit_status = stdout.channel.recv_exit_status()
+        return {
+            "connection_name": connection_name,
+            "command": command,
+            "exit_status": int(exit_status),
+            "stdout": stdout.read().decode("utf-8", errors="replace"),
+            "stderr": stderr.read().decode("utf-8", errors="replace"),
+        }
+    finally:
+        client.close()
+
+
+@mcp.tool()
+def run_ssh_command_with_input(
+    connection_name: str,
+    command: str,
+    input_text: str,
+    timeout_seconds: int = 30,
+) -> dict[str, Any]:
+    """Run a remote SSH command with a pseudo-terminal and supplied input."""
+    command = command.strip()
+    if not command:
+        raise ValueError("command must not be empty")
+    if not 1 <= timeout_seconds <= 36_000:
+        raise ValueError("timeout_seconds must be between 1 and 36000")
+    client = _open_ssh(connection_name)
+    try:
+        stdin, stdout, stderr = client.exec_command(
+            command, timeout=timeout_seconds, get_pty=True
+        )
+        stdin.write(input_text)
+        stdin.flush()
+        stdin.channel.shutdown_write()
         exit_status = stdout.channel.recv_exit_status()
         return {
             "connection_name": connection_name,
@@ -1819,6 +1856,7 @@ def recreate_saved_sequence_without_cache(
     finally:
         connection.close()
 
+@mcp.tool()
 def search_saved_oracle_source(
     connection_name: str, search_terms: list[str], max_rows: int = 100
 ) -> dict[str, object]:
@@ -3552,6 +3590,136 @@ def create_saved_oracle_index(
         }
     finally:
         connection.close()
+
+@mcp.tool()
+def create_saved_table_insert_log(
+    connection_name: str,
+    owner: str,
+    table_name: str,
+    log_table_name: str,
+    trigger_name: str,
+    confirmed: bool,
+) -> dict[str, object]:
+    """Create a row-copy log table and an AFTER INSERT trigger for one table.
+
+    The log table is created with the source table's columns in the same order
+    plus ``TIME_STAMP TIMESTAMP WITH TIME ZONE DEFAULT SYSTIMESTAMP``. The
+    trigger copies every inserted source row and leaves the timestamp default
+    to Oracle. This is a persistent DDL operation and refuses existing log or
+    trigger objects; it performs no data backfill.
+    """
+    identifier = re.compile(r"[A-Za-z][A-Za-z0-9_$#_]{0,29}")
+    if not confirmed:
+        raise ValueError("confirmed must be true after explicit approval for this write operation.")
+    if not all(identifier.fullmatch(value) for value in (owner, table_name, log_table_name, trigger_name)):
+        raise ValueError("owner, table_name, log_table_name, and trigger_name must be simple Oracle identifiers.")
+    safe_owner, safe_table = owner.upper(), table_name.upper()
+    safe_log, safe_trigger = log_table_name.upper(), trigger_name.upper()
+    connection = _connect_saved_oracle(connection_name)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "select object_type from dba_objects where owner = :owner and object_name = :name",
+                {"owner": safe_owner, "name": safe_table},
+            )
+            source = cursor.fetchone()
+            if source is None or str(source[0]).upper() != "TABLE":
+                raise ValueError(f"Source table {safe_owner}.{safe_table} was not found.")
+            cursor.execute(
+                "select column_name from dba_tab_columns where owner = :owner and table_name = :table_name "
+                "order by column_id",
+                {"owner": safe_owner, "table_name": safe_table},
+            )
+            columns = [str(row[0]).upper() for row in cursor]
+            if not columns:
+                raise ValueError(f"Source table {safe_owner}.{safe_table} has no usable columns.")
+            cursor.execute(
+                "select object_name, object_type from dba_objects where owner = :owner and object_name in (:log_name, :trigger_name)",
+                {"owner": safe_owner, "log_name": safe_log, "trigger_name": safe_trigger},
+            )
+            existing = [(str(name), str(object_type)) for name, object_type in cursor]
+            if existing:
+                raise ValueError(f"Objects already exist: {existing}.")
+            column_list = ", ".join(columns)
+            new_values = ", ".join(f":new.{column}" for column in columns)
+            cursor.execute(
+                f"create table {safe_owner}.{safe_log} as select {column_list} from {safe_owner}.{safe_table} where 1 = 0"
+            )
+            cursor.execute(
+                f"alter table {safe_owner}.{safe_log} add (TIME_STAMP TIMESTAMP WITH TIME ZONE default SYSTIMESTAMP not null)"
+            )
+            cursor.execute(
+                f"create or replace trigger {safe_owner}.{safe_trigger} "
+                f"after insert on {safe_owner}.{safe_table} for each row "
+                "begin "
+                f"insert into {safe_owner}.{safe_log} ({column_list}) values ({new_values}); "
+                "end;"
+            )
+            cursor.execute(
+                "select status from dba_triggers where owner = :owner and trigger_name = :trigger_name",
+                {"owner": safe_owner, "trigger_name": safe_trigger},
+            )
+            trigger_status = cursor.fetchone()
+            cursor.execute(
+                "select column_name, data_type, nullable, data_default from dba_tab_columns "
+                "where owner = :owner and table_name = :table_name order by column_id",
+                {"owner": safe_owner, "table_name": safe_log},
+            )
+            log_columns = [
+                {"name": str(name), "data_type": str(data_type), "nullable": str(nullable), "default": str(default) if default else None}
+                for name, data_type, nullable, default in cursor
+            ]
+        return {
+            "connection": connection_name,
+            "source_table": f"{safe_owner}.{safe_table}",
+            "log_table": f"{safe_owner}.{safe_log}",
+            "trigger": f"{safe_owner}.{safe_trigger}",
+            "source_columns": columns,
+            "log_columns": log_columns,
+            "trigger_status": str(trigger_status[0]) if trigger_status else None,
+            "status": "created",
+        }
+    finally:
+        connection.close()
+
+@mcp.tool()
+def run_saved_targets_routine(
+    remote_log_root: str = "F:/Backup/Oracle/RMAN",
+    backup_scripts_root: str = "F:/Backup/Oracle/RMAN",
+    copy_local_root: str = "rman/scripts",
+    last_records: int = 500,
+) -> dict[str, Any]:
+    """Sequentially check reachable targets and collect their backup jobs."""
+    if not remote_log_root.strip() or not backup_scripts_root.strip():
+        raise ValueError("remote_log_root and backup_scripts_root must not be empty")
+    if not 1 <= last_records <= 5000:
+        raise ValueError("last_records must be between 1 and 5000")
+    results: list[dict[str, Any]] = []
+    for connection_name in connections_list():
+        item: dict[str, Any] = {"connection_name": connection_name}
+        try:
+            item["ssh"] = check_ssh_connectivity(connection_name)
+        except Exception as exc:
+            item.update({"status": "not_accessible", "error": str(exc)})
+            results.append(item)
+            continue
+        item["status"] = "accessible"
+        checks = (
+            ("free_space", lambda: inspect_saved_database_space(connection_name)),
+            ("alert_log", lambda: inspect_saved_alert_log_errors(connection_name, last_records)),
+            ("backup_logs", lambda: inspect_saved_backup_log_errors(connection_name, remote_log_root, last_records)),
+            ("copy_jobs", lambda: collect_saved_backup_scripts(connection_name, backup_scripts_root, copy_local_root)),
+        )
+        for label, operation in checks:
+            try:
+                item[label] = operation()
+            except Exception as exc:
+                item[label] = {"status": "failed", "error": str(exc)}
+        results.append(item)
+    return {"target_count": len(results),
+            "accessible_count": sum(item["status"] == "accessible" for item in results),
+            "targets": results}
+
 
 if __name__ == "__main__":
     mcp.run(transport="stdio")

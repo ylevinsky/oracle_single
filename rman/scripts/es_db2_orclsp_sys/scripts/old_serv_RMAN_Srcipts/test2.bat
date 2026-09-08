@@ -1,0 +1,1 @@
+SmtpMailSender.exe test Subject ; test Body; tzachar@essence-grp.com ; test_log.log

@@ -21,6 +21,8 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
   reports matching errors.
 - `inspect_saved_backup_log_errors`: scans recent remote backup logs and
   reports matching errors.
+- `run_saved_targets_routine`: sequentially checks reachable targets for free
+  space, alert-log errors, backup-log errors, and copies backup job scripts.
 - `inspect_all_saved_database_space`: checks every saved Oracle target and
   returns per-target capacity results or sanitized connection errors.
 - `inspect_local_rag_database`: checks the local RAG PostgreSQL database,

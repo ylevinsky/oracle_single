@@ -31,6 +31,10 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
   parsing schemas whose plans contain `TABLE ACCESS FULL`.
 - `inspect_sql_index_context`: returns active plan predicates, object statistics,
   relevant column statistics, and existing indexes for a SQL ID.
+- `search_saved_oracle_source`: searches stored procedure, function, package,
+  package-body, and trigger source for one to three terms.
+- `inspect_saved_table_sync_sources`: identifies stored-code references,
+  triggers, dependencies, and related jobs for a table.
 
 The imported tools cover connection metadata, tablespace capacity and expansion,
 compression, Scheduler jobs, execution plans, materialized views, sync status,

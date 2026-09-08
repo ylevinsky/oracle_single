@@ -1868,6 +1868,7 @@ def search_saved_oracle_source(
     finally:
         connection.close()
 
+@mcp.tool()
 def inspect_saved_table_sync_sources(
     connection_name: str, owner: str, table_name: str
 ) -> dict[str, object]:

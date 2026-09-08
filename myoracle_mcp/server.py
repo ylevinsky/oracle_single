@@ -1000,6 +1000,7 @@ def inspect_oracle_connection_spreadsheet(file_path: str) -> dict[str, object]:
         "record_count": len(records),
     }
 
+@mcp.tool()
 def expand_saved_tablespace(connection_name: str, tablespace_name: str, additional_gib: int) -> dict[str, object]:
     """Permanently add one non-autoextending datafile to a saved tablespace.
 

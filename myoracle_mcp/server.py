@@ -638,6 +638,70 @@ def inspect_saved_database_space(
 
 
 @mcp.tool()
+def search_saved_oracle_objects(
+    connection_name: str,
+    object_name: str,
+    owner: str | None = None,
+    include_views: bool = False,
+) -> dict[str, Any]:
+    """Find tables or optionally views by exact Oracle object name."""
+    safe_name = object_name.strip().upper()
+    if not safe_name or len(safe_name) > 128:
+        raise ValueError("object_name must contain 1 to 128 characters.")
+    safe_owner = owner.strip().upper() if owner and owner.strip() else None
+    connection = _read_connection(connection_name)
+    object_types = "('TABLE', 'VIEW', 'MATERIALIZED VIEW')" if include_views else "('TABLE')"
+    sql = f"""
+        select owner, object_name, object_type, status,
+               to_char(created, 'YYYY-MM-DD HH24:MI:SS') as created,
+               to_char(last_ddl_time, 'YYYY-MM-DD HH24:MI:SS') as last_ddl_time
+          from all_objects
+         where object_name = :object_name
+           and object_type in {object_types}
+           and (:owner is null or owner = :owner)
+         order by owner, object_type, object_name
+    """
+    with _connect(connection) as database:
+        with database.cursor() as cursor:
+            cursor.execute(sql, object_name=safe_name, owner=safe_owner)
+            matches = _fetch_dicts(cursor)
+    return {
+        "connection_name": connection_name,
+        "database": connection["database"],
+        "object_name": safe_name,
+        "owner_filter": safe_owner,
+        "include_views": include_views,
+        "matches": matches,
+    }
+
+
+@mcp.tool()
+def search_all_saved_oracle_objects(
+    object_name: str,
+    owner: str | None = None,
+    include_views: bool = False,
+) -> dict[str, Any]:
+    """Search every saved Oracle target for an exact table or object name."""
+    results = []
+    for connection_name in connections_list():
+        try:
+            results.append({
+                "connection_name": connection_name,
+                "ok": True,
+                "result": search_saved_oracle_objects(
+                    connection_name, object_name, owner, include_views
+                ),
+            })
+        except Exception as exc:
+            results.append({
+                "connection_name": connection_name,
+                "ok": False,
+                "error": f"{type(exc).__name__}: {exc}",
+            })
+    return {"target_count": len(results), "results": results}
+
+
+@mcp.tool()
 def inspect_all_saved_database_space() -> dict[str, Any]:
     """Read tablespace capacity from every saved Oracle target."""
     results = []

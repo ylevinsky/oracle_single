@@ -3654,6 +3654,32 @@ def inspect_saved_oracle_memory_configuration(connection_name: str) -> dict[str,
     finally:
         connection.close()
 
+@mcp.tool()
+def disable_saved_sql_tuning_task(connection_name: str) -> dict[str, object]:
+    """Disable Oracle's automatic SQL tuning task for a saved connection."""
+    connection = _connect_saved_oracle(connection_name)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "begin dbms_auto_task_admin.disable(" 
+                "client_name => 'sql tuning advisor', operation => null, window_name => null); end;"
+            )
+            connection.commit()
+            cursor.execute(
+                "select client_name, status from dba_autotask_client "
+                "where lower(client_name) = 'sql tuning advisor'"
+            )
+            row = cursor.fetchone()
+        return {
+            "connection_name": connection_name,
+            "client_name": row[0] if row else "sql tuning advisor",
+            "status": row[1] if row else None,
+        }
+    finally:
+        connection.close()
+
+
+@mcp.tool()
 def run_saved_scheduler_job(
     connection_name: str, job_name: str, confirmed: bool
 ) -> dict[str, object]:

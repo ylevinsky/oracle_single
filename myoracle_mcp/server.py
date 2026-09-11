@@ -3221,6 +3221,52 @@ def inspect_saved_pga_configuration(connection_name: str) -> dict[str, object]:
 
 
 @mcp.tool()
+def inspect_saved_session_pga(connection_name: str, limit: int = 20) -> dict[str, object]:
+    """List current Oracle sessions using the most PGA memory.
+
+    This is a read-only diagnostic based on V$SESSION and V$PROCESS.  It
+    returns current PGA usage by session, user, client, and SQL ID; it does
+    not expose SQL text or credentials.
+    """
+    if not 1 <= limit <= 100:
+        raise ValueError("limit must be between 1 and 100.")
+    connection = _connect_saved_oracle(connection_name)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "select * from ("
+                "select s.sid, s.serial#, s.username, s.status, s.sql_id, "
+                "s.machine, s.program, s.module, s.event, "
+                "p.spid, p.pga_used_mem, p.pga_alloc_mem, p.pga_max_mem "
+                "from v$session s join v$process p on p.addr = s.paddr "
+                "where s.type = 'USER' "
+                "order by p.pga_used_mem desc nulls last"
+                ") where rownum <= :limit",
+                {"limit": limit},
+            )
+            rows = []
+            for row in cursor:
+                rows.append({
+                    "sid": int(row[0]),
+                    "serial": int(row[1]),
+                    "username": str(row[2]) if row[2] is not None else None,
+                    "status": str(row[3]) if row[3] is not None else None,
+                    "sql_id": str(row[4]) if row[4] is not None else None,
+                    "machine": str(row[5]) if row[5] is not None else None,
+                    "program": str(row[6]) if row[6] is not None else None,
+                    "module": str(row[7]) if row[7] is not None else None,
+                    "event": str(row[8]) if row[8] is not None else None,
+                    "spid": str(row[9]) if row[9] is not None else None,
+                    "pga_used_mem": int(row[10]) if row[10] is not None else None,
+                    "pga_alloc_mem": int(row[11]) if row[11] is not None else None,
+                    "pga_max_mem": int(row[12]) if row[12] is not None else None,
+                })
+        return {"connection": connection_name, "limit": limit, "rows": rows}
+    finally:
+        connection.close()
+
+
+@mcp.tool()
 def set_saved_database_connection_limits(
     connection_name: str,
     sessions_limit: int,

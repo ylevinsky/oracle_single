@@ -3186,6 +3186,39 @@ def enable_saved_ash(connection_name: str) -> dict[str, object]:
 
 
 @mcp.tool()
+def set_saved_statistics_level(connection_name: str, level: str = "ALL") -> dict[str, object]:
+    """Set Oracle STATISTICS_LEVEL dynamically and persistently."""
+    normalized = level.strip().upper()
+    if normalized not in {"TYPICAL", "ALL", "BASIC"}:
+        raise ValueError("level must be one of TYPICAL, ALL, or BASIC.")
+    connection = _connect_saved_oracle(connection_name)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "select value from v$parameter where name = 'statistics_level'"
+            )
+            before = cursor.fetchone()[0]
+            cursor.execute(
+                f"alter system set statistics_level = '{normalized}' scope = both"
+            )
+            cursor.execute(
+                "select value from v$parameter where name = 'statistics_level'"
+            )
+            after = cursor.fetchone()[0]
+        return {
+            "connection": connection_name,
+            "parameter": "statistics_level",
+            "before": str(before) if before is not None else None,
+            "after": str(after) if after is not None else None,
+            "requested_level": normalized,
+            "scope": "BOTH",
+            "database_restart": False,
+        }
+    finally:
+        connection.close()
+
+
+@mcp.tool()
 def inspect_saved_pga_configuration(connection_name: str) -> dict[str, object]:
     """Read current PGA parameters, runtime PGA statistics, and process limits."""
     connection = _connect_saved_oracle(connection_name)

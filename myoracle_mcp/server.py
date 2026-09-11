@@ -2506,6 +2506,7 @@ def inspect_saved_oracle_locks(connection_name: str) -> dict[str, object]:
     finally:
         connection.close()
 
+@mcp.tool()
 def inspect_saved_oracle_diagnostics(connection_name: str) -> dict[str, object]:
     """Return Oracle ADR and alert-log locations for a saved connection.
 

@@ -3,7 +3,7 @@
 Repository-scoped MCP server for Oracle connections stored in
 `.db/connections.json`.
 
-The server exposes 44 tools: the nine repository-scoped tools listed below,
+The server exposes 45 tools: the nine repository-scoped tools listed below,
 plus the 34 additional tools imported from the maintained Oracle implementation
 in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
 
@@ -27,6 +27,8 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
   returns per-target capacity results or sanitized connection errors.
 - `daily_rutione_check`: on demand, checks every saved target's job statuses
   and tablespace capacity, returning per-target job and space issues.
+- `list_top_sql_memory`: ranks non-Oracle-maintained SQL by shared-pool memory
+  (`SHARABLE_MEM + PERSISTENT_MEM + RUNTIME_MEM`).
 - `inspect_local_rag_database`: checks the local RAG PostgreSQL database,
   pgvector extension, and required RAG tables.
 - `ingest_local_rag_markdown`: ingests a Markdown file or directory into the

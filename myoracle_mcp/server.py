@@ -971,6 +971,51 @@ def list_top_full_scan_queries(
 
 
 @mcp.tool()
+def list_top_sql_memory(
+    connection_name: str,
+    limit: int = 10,
+) -> dict[str, Any]:
+    """Rank non-Oracle-maintained SQL by shared-pool memory consumption."""
+    if not 1 <= limit <= 100:
+        raise ValueError("limit must be between 1 and 100")
+    connection = _read_connection(connection_name)
+    memory_sql = """
+        select sql_id,
+               parsing_schema_name,
+               sum(sharable_mem) as sharable_mem_bytes,
+               sum(persistent_mem) as persistent_mem_bytes,
+               sum(runtime_mem) as runtime_mem_bytes,
+               sum(sharable_mem + persistent_mem + runtime_mem)
+                   as total_memory_bytes,
+               sum(executions) as executions,
+               max(last_active_time) as last_active_time,
+               max(sql_text) as sql_text
+          from v$sql s
+         where exists (
+                   select 1
+                     from dba_users u
+                    where u.username = s.parsing_schema_name
+                      and u.oracle_maintained = 'N'
+               )
+         group by sql_id, parsing_schema_name
+         order by total_memory_bytes desc
+         fetch first :limit rows only
+    """
+    with _connect(connection) as database:
+        with database.cursor() as cursor:
+            cursor.execute(memory_sql, limit=limit)
+            queries = _fetch_dicts(cursor)
+    return {
+        "connection_name": connection_name,
+        "database": connection["database"],
+        "source": "V$SQL",
+        "ranking": "SHARABLE_MEM + PERSISTENT_MEM + RUNTIME_MEM descending",
+        "query_count": len(queries),
+        "queries": queries,
+    }
+
+
+@mcp.tool()
 def inspect_sql_index_context(
     connection_name: str,
     sql_id: str,

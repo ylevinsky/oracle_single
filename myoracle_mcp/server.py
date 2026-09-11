@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import base64
 import json
 import ctypes
 import ctypes.wintypes
@@ -448,8 +449,9 @@ def _remote_error_lines(connection_name: str, paths_expression: str, tail: int) 
     )
     client = _open_ssh(connection_name)
     try:
+        encoded = base64.b64encode(command.encode("utf-16le")).decode("ascii")
         _, stdout, stderr = client.exec_command(
-            "powershell -NoProfile -NonInteractive -Command " + _powershell_literal(command),
+            "powershell -NoProfile -NonInteractive -EncodedCommand " + encoded,
             timeout=60, get_pty=False,
         )
         status = stdout.channel.recv_exit_status()

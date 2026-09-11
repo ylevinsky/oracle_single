@@ -3176,6 +3176,51 @@ def inspect_saved_pga_configuration(connection_name: str) -> dict[str, object]:
 
 
 @mcp.tool()
+def set_saved_database_connection_limits(
+    connection_name: str,
+    sessions_limit: int,
+    processes_limit: int,
+    confirmed: bool = False,
+) -> dict[str, object]:
+    """Set database-wide SESSIONS and PROCESSES limits dynamically."""
+    if not confirmed:
+        raise ValueError("confirmed must be true for this persistent database change.")
+    if not 100 <= sessions_limit <= 1000000 or not 100 <= processes_limit <= 1000000:
+        raise ValueError("limits must be between 100 and 1000000.")
+    connection = _connect_saved_oracle(connection_name)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "select name, value from v$parameter "
+                "where name in ('sessions', 'processes') order by name"
+            )
+            before = {str(name): str(value) for name, value in cursor}
+            cursor.execute(
+                "alter system set processes = :value scope = spfile",
+                {"value": processes_limit},
+            )
+            cursor.execute(
+                "alter system set sessions = :value scope = spfile",
+                {"value": sessions_limit},
+            )
+            cursor.execute(
+                "select name, value from v$parameter "
+                "where name in ('sessions', 'processes') order by name"
+            )
+            after = {str(name): str(value) for name, value in cursor}
+        return {
+            "connection": connection_name,
+            "before": before,
+            "after": after,
+            "requested": {"sessions": sessions_limit, "processes": processes_limit},
+            "scope": "SPFILE",
+            "database_restart_required": True,
+        }
+    finally:
+        connection.close()
+
+
+@mcp.tool()
 def set_saved_pga_parameters(
     connection_name: str,
     target_gib: int,

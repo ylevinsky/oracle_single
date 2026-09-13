@@ -3967,6 +3967,62 @@ def create_saved_table_insert_log(
         connection.close()
 
 @mcp.tool()
+def modify_saved_column_length(
+    connection_name: str,
+    owner: str,
+    table_name: str,
+    column_name: str,
+    new_length: int,
+    confirmed: bool,
+) -> dict[str, object]:
+    """Modify a VARCHAR2 column length on a saved Oracle table."""
+    identifier = re.compile(r"[A-Za-z][A-Za-z0-9_$#]{0,29}")
+    if not confirmed:
+        raise ValueError("confirmed must be true after explicit approval for this write operation.")
+    if not all(identifier.fullmatch(value) for value in (owner, table_name, column_name)):
+        raise ValueError("owner, table_name, and column_name must be simple Oracle identifiers.")
+    if not 1 <= new_length <= 4000:
+        raise ValueError("new_length must be between 1 and 4000.")
+
+    safe_owner = owner.upper()
+    safe_table = table_name.upper()
+    safe_column = column_name.upper()
+
+    connection = _connect_saved_oracle(connection_name)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "select data_type, data_length, char_length from dba_tab_columns "
+                "where owner = :owner and table_name = :table_name and column_name = :column_name",
+                {"owner": safe_owner, "table_name": safe_table, "column_name": safe_column},
+            )
+            col_row = cursor.fetchone()
+            if col_row is None:
+                raise ValueError(f"Column {safe_owner}.{safe_table}.{safe_column} was not found.")
+            data_type, before_length, char_length = col_row
+            cursor.execute(
+                f"alter table {safe_owner}.{safe_table} modify ({safe_column} varchar2({new_length}))"
+            )
+            cursor.execute(
+                "select data_type, data_length, char_length from dba_tab_columns "
+                "where owner = :owner and table_name = :table_name and column_name = :column_name",
+                {"owner": safe_owner, "table_name": safe_table, "column_name": safe_column},
+            )
+            after_type, after_length, after_char_length = cursor.fetchone()
+        return {
+            "connection": connection_name,
+            "owner": safe_owner,
+            "table_name": safe_table,
+            "column_name": safe_column,
+            "before_length": int(char_length or before_length),
+            "after_length": int(after_char_length or after_length),
+            "status": "modified",
+        }
+    finally:
+        connection.close()
+
+
+@mcp.tool()
 def run_saved_targets_routine(
     remote_log_root: str = "F:/Backup/Oracle/RMAN",
     backup_scripts_root: str = "F:/Backup/Oracle/RMAN",

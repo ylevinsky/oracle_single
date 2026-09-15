@@ -6,6 +6,7 @@ import json
 import ctypes
 import ctypes.wintypes
 from datetime import datetime, timedelta, timezone
+import os
 import re
 import secrets
 import stat
@@ -15,6 +16,8 @@ import threading
 import time
 from pathlib import Path
 from typing import Any
+import xml.etree.ElementTree as ElementTree
+import zipfile
 
 import oracledb
 import paramiko
@@ -76,6 +79,14 @@ def _read_connection(connection_name: str) -> dict[str, Any]:
     connection = dict(connection)
     connection["connection_name"] = connection_name
     return connection
+
+
+def _local_rag_database_url() -> str:
+    """Return the locally configured RAG URL without reading it from the registry."""
+    url = os.environ.get("RAG_DATABASE_URL", "").strip()
+    if not url:
+        raise RuntimeError("Set RAG_DATABASE_URL before using the local RAG database.")
+    return url
 
 
 def _credential_target(connection_name: str, connection: dict[str, Any]) -> str:
@@ -297,7 +308,7 @@ def run_ssh_command(
         raise ValueError("timeout_seconds must be between 1 and 36000")
     client = _open_ssh(connection_name)
     try:
-        stdin, stdout, stderr = client.exec_command(
+        _stdin, stdout, stderr = client.exec_command(
             command, timeout=timeout_seconds, get_pty=False
         )
         exit_status = stdout.channel.recv_exit_status()
@@ -849,12 +860,7 @@ def daily_rutione_check(
 @mcp.tool()
 def inspect_local_rag_database() -> dict[str, Any]:
     """Check local RAG PostgreSQL, pgvector, and required tables."""
-    connection = _read_connection("local_rag")
-    url = (
-        f"postgresql://{connection['username']}:{connection['password']}@"
-        f"{connection['host']}:{connection['port']}/{connection['database']}"
-    )
-    with psycopg.connect(url) as database:
+    with psycopg.connect(_local_rag_database_url()) as database:
         row = database.execute("""
             select current_database(),
                    exists (select 1 from pg_extension where extname = 'vector'),
@@ -881,7 +887,10 @@ def ingest_local_rag_markdown(path: str = "local_rag") -> dict[str, Any]:
     if not source.exists():
         raise ValueError(f"path does not exist: {path}")
     command = [sys.executable, str(REPOSITORY_ROOT / "local_rag" / "rag.py"), "ingest", str(source)]
-    completed = subprocess.run(command, cwd=str(REPOSITORY_ROOT), capture_output=True, text=True, timeout=300)
+    completed = subprocess.run(
+        command, cwd=str(REPOSITORY_ROOT), capture_output=True, text=True,
+        timeout=300, check=False,
+    )
     if completed.returncode:
         raise RuntimeError((completed.stderr or completed.stdout).strip() or "RAG ingestion failed")
     return {"path": str(source), "output": completed.stdout.strip()}
@@ -1145,6 +1154,82 @@ def inspect_sql_index_context(
     }
 
 
+def _xlsx_tables(path: Path) -> list[list[list[str]]]:
+    """Read cell text from XLSX worksheets using only the standard library."""
+    spreadsheet_ns = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+    with zipfile.ZipFile(path) as archive:
+        shared_strings: list[str] = []
+        if "xl/sharedStrings.xml" in archive.namelist():
+            root = ElementTree.fromstring(archive.read("xl/sharedStrings.xml"))
+            shared_strings = ["".join(item.itertext()) for item in root.findall(f"{spreadsheet_ns}si")]
+        tables: list[list[list[str]]] = []
+        for name in sorted(item for item in archive.namelist() if item.startswith("xl/worksheets/") and item.endswith(".xml")):
+            rows: list[list[str]] = []
+            root = ElementTree.fromstring(archive.read(name))
+            for row in root.findall(f".//{spreadsheet_ns}row"):
+                values: list[str] = []
+                for cell in row.findall(f"{spreadsheet_ns}c"):
+                    value = cell.findtext(f"{spreadsheet_ns}v", default="")
+                    if cell.get("t") == "s" and value.isdigit() and int(value) < len(shared_strings):
+                        value = shared_strings[int(value)]
+                    elif cell.get("t") == "inlineStr":
+                        value = "".join(cell.itertext())
+                    values.append(value.strip())
+                if any(values):
+                    rows.append(values)
+            if rows:
+                tables.append(rows)
+    return tables
+
+
+def _ods_tables(path: Path) -> list[list[list[str]]]:
+    """Read cell text from ODS worksheets using only the standard library."""
+    table_ns = "{urn:oasis:names:tc:opendocument:xmlns:table:1.0}"
+    with zipfile.ZipFile(path) as archive:
+        root = ElementTree.fromstring(archive.read("content.xml"))
+    tables: list[list[list[str]]] = []
+    for table in root.findall(f".//{table_ns}table"):
+        rows: list[list[str]] = []
+        for row in table.findall(f"{table_ns}table-row"):
+            values: list[str] = []
+            for cell in row.findall(f"{table_ns}table-cell"):
+                value = "".join(cell.itertext()).strip()
+                repeat = int(cell.get(f"{table_ns}number-columns-repeated", "1"))
+                values.extend([value] * repeat)
+            if any(values):
+                rows.append(values)
+        if rows:
+            tables.append(rows)
+    return tables
+
+
+def _connection_metadata(tables: list[list[list[str]]]) -> tuple[list[dict[str, str]], list[str]]:
+    """Convert worksheet rows to records while omitting secret-bearing columns."""
+    secret_markers = ("password", "passwd", "token", "secret", "credential", "private key", "private_key")
+    records: list[dict[str, str]] = []
+    ignored_columns: set[str] = set()
+    for rows in tables:
+        header = rows[0]
+        safe_columns = [
+            index for index, column in enumerate(header)
+            if column and not any(marker in column.lower() for marker in secret_markers)
+        ]
+        ignored_columns.update(
+            column for column in header
+            if column and any(marker in column.lower() for marker in secret_markers)
+        )
+        for row in rows[1:]:
+            record = {
+                header[index]: row[index]
+                for index in safe_columns
+                if index < len(row) and row[index]
+            }
+            if record:
+                records.append(record)
+    return records, sorted(ignored_columns)
+
+
+@mcp.tool()
 def inspect_oracle_connection_spreadsheet(file_path: str) -> dict[str, object]:
     """Read non-secret Oracle connection metadata from an XLSX or ODS spreadsheet.
 
@@ -1258,6 +1343,7 @@ def expand_saved_tablespace(connection_name: str, tablespace_name: str, addition
     finally:
         connection.close()
 
+@mcp.tool()
 def test_saved_table_compression(connection_name: str, confirmed: bool) -> dict[str, object]:
     """Create and immediately remove a disposable basic-compression table.
 
@@ -1293,6 +1379,7 @@ def test_saved_table_compression(connection_name: str, confirmed: bool) -> dict[
     finally:
         connection.close()
 
+@mcp.tool()
 def inspect_saved_compressed_tables(connection_name: str) -> dict[str, object]:
     """List compressed tables owned by non-Oracle-maintained schemas."""
     connection = _connect_saved_oracle(connection_name)
@@ -1317,6 +1404,7 @@ def inspect_saved_compressed_tables(connection_name: str) -> dict[str, object]:
     finally:
         connection.close()
 
+@mcp.tool()
 def search_saved_scheduler_job_history(connection_name: str, search_term: str) -> dict[str, object]:
     """Search Scheduler run history output and diagnostics for a text term."""
     term = search_term.strip()
@@ -1348,6 +1436,7 @@ def search_saved_scheduler_job_history(connection_name: str, search_term: str) -
     finally:
         connection.close()
 
+@mcp.tool()
 def inspect_saved_scheduler_job(
     connection_name: str, job_name: str, history_days: int = 30
 ) -> dict[str, object]:
@@ -1439,6 +1528,7 @@ def inspect_saved_scheduler_job(
     finally:
         connection.close()
 
+@mcp.tool()
 def inspect_saved_schema_sql_execution_plans(
     connection_name: str, schema_name: str, search_terms: list[str], history_days: int = 30
 ) -> dict[str, object]:
@@ -1532,6 +1622,7 @@ def inspect_saved_schema_sql_execution_plans(
     finally:
         connection.close()
 
+@mcp.tool()
 def inspect_saved_materialized_view_refreshes(connection_name: str) -> dict[str, object]:
     """Read active materialized-view refresh activity from a saved Oracle connection.
 
@@ -1575,6 +1666,7 @@ def inspect_saved_materialized_view_refreshes(connection_name: str) -> dict[str,
     finally:
         connection.close()
 
+@mcp.tool()
 def inspect_saved_materialized_view_refresh_waits(connection_name: str) -> dict[str, object]:
     """Read current wait and blocking details for active materialized-view refresh sessions.
 
@@ -1626,6 +1718,7 @@ def inspect_saved_materialized_view_refresh_waits(connection_name: str) -> dict[
     finally:
         connection.close()
 
+@mcp.tool()
 def inspect_saved_sync_process_status(connection_name: str, history_days: int = 7) -> dict[str, object]:
     """Return the current status of the TRANSFER_USER materialized-view sync process.
 
@@ -1737,6 +1830,7 @@ def inspect_saved_sync_process_status(connection_name: str, history_days: int = 
     finally:
         connection.close()
 
+@mcp.tool()
 def kill_saved_oracle_session(connection_name: str, sid: int, serial: int) -> dict[str, object]:
     """Immediately terminate one explicitly identified Oracle session.
 
@@ -1773,6 +1867,7 @@ def kill_saved_oracle_session(connection_name: str, sid: int, serial: int) -> di
     finally:
         connection.close()
 
+@mcp.tool()
 def set_saved_oracle_session_trace(
     connection_name: str,
     sid: int,
@@ -1837,6 +1932,7 @@ def set_saved_oracle_session_trace(
     finally:
         connection.close()
 
+@mcp.tool()
 def set_saved_all_users_login_trace(
     connection_name: str, enabled: bool, confirmed: bool = False
 ) -> dict[str, object]:
@@ -1891,6 +1987,7 @@ def set_saved_all_users_login_trace(
     finally:
         connection.close()
 
+@mcp.tool()
 def recreate_saved_sequence_without_cache(
     connection_name: str, owner: str, sequence_name: str, confirmed: bool = False
 ) -> dict[str, object]:
@@ -2239,6 +2336,7 @@ def inspect_saved_table_sync_sources(
     finally:
         connection.close()
 
+@mcp.tool()
 def inspect_saved_table_statistics(
     connection_name: str, tables: list[dict[str, str]]
 ) -> dict[str, object]:
@@ -2289,6 +2387,7 @@ def inspect_saved_table_statistics(
     finally:
         connection.close()
 
+@mcp.tool()
 def gather_saved_table_statistics(
     connection_name: str, tables: list[dict[str, str]], confirmed: bool = False
 ) -> dict[str, object]:
@@ -2347,6 +2446,7 @@ def gather_saved_table_statistics(
     finally:
         connection.close()
 
+@mcp.tool()
 def compare_saved_table_statistics_to_counts(
     connection_name: str, tables: list[dict[str, str]]
 ) -> dict[str, object]:
@@ -2395,6 +2495,7 @@ def compare_saved_table_statistics_to_counts(
     finally:
         connection.close()
 
+@mcp.tool()
 def inspect_saved_open_sessions(connection_name: str) -> dict[str, object]:
     """List currently open user sessions on a saved Oracle connection.
 
@@ -2436,6 +2537,7 @@ def inspect_saved_open_sessions(connection_name: str) -> dict[str, object]:
     finally:
         connection.close()
 
+@mcp.tool()
 def inspect_saved_oracle_locks(connection_name: str) -> dict[str, object]:
     """Inspect current Oracle lock waiters, blockers, and locked objects.
 
@@ -2624,6 +2726,7 @@ def inspect_saved_oracle_diagnostics(connection_name: str) -> dict[str, object]:
     finally:
         connection.close()
 
+@mcp.tool()
 def inspect_saved_session_count(connection_name: str) -> dict[str, object]:
     """Return ``SELECT COUNT(*) FROM V$SESSION`` for a saved Oracle connection.
 
@@ -2640,6 +2743,7 @@ def inspect_saved_session_count(connection_name: str) -> dict[str, object]:
     finally:
         connection.close()
 
+@mcp.tool()
 def inspect_saved_session_users(connection_name: str) -> dict[str, object]:
     """List distinct authenticated usernames from ``V$SESSION`` on a saved connection.
 
@@ -2659,6 +2763,7 @@ def inspect_saved_session_users(connection_name: str) -> dict[str, object]:
     finally:
         connection.close()
 
+@mcp.tool()
 def inspect_saved_routine_callers(
     connection_name: str, owner: str, routine_name: str
 ) -> dict[str, object]:
@@ -2747,6 +2852,7 @@ def inspect_saved_routine_callers(
     finally:
         connection.close()
 
+@mcp.tool()
 def export_saved_oracle_object(
     connection_name: str, owner: str, object_name: str, object_type: str
 ) -> dict[str, object]:
@@ -2818,6 +2924,7 @@ def export_saved_oracle_object(
     finally:
         connection.close()
 
+@mcp.tool()
 def inspect_saved_sys_session_sql(connection_name: str) -> dict[str, object]:
     """List ``SYS`` user sessions and their current SQL text.
 
@@ -3012,6 +3119,7 @@ def inspect_saved_awr_snapshots(
         connection.close()
 
 
+@mcp.tool()
 def inspect_saved_top_pga_consumers(connection_name: str, limit: int = 20) -> dict[str, object]:
     """List current Oracle user sessions with the largest allocated PGA memory.
 
@@ -3537,6 +3645,7 @@ def inspect_saved_user_session_waits(
     finally:
         connection.close()
 
+@mcp.tool()
 def inspect_saved_table_indexes(
     connection_name: str, tables: list[dict[str, object]]
 ) -> dict[str, object]:
@@ -3584,6 +3693,7 @@ def inspect_saved_table_indexes(
     finally:
         connection.close()
 
+@mcp.tool()
 def set_saved_pga_aggregate_limit(
     connection_name: str, limit_gib: int, confirmed: bool
 ) -> dict[str, object]:
@@ -3620,6 +3730,7 @@ def set_saved_pga_aggregate_limit(
     finally:
         connection.close()
 
+@mcp.tool()
 def set_saved_pga_aggregate_target(
     connection_name: str, target_gib: int, confirmed: bool
 ) -> dict[str, object]:
@@ -3666,6 +3777,7 @@ def set_saved_pga_aggregate_target(
     finally:
         connection.close()
 
+@mcp.tool()
 def inspect_saved_oracle_memory_configuration(connection_name: str) -> dict[str, object]:
     """Inspect memory, workarea, optimizer, parallel, and PGA-pressure settings.
 
@@ -3805,6 +3917,7 @@ def run_saved_scheduler_job(
     finally:
         connection.close()
 
+@mcp.tool()
 def create_saved_oracle_index(
     connection_name: str,
     owner: str,
@@ -4045,10 +4158,10 @@ def run_saved_targets_routine(
             continue
         item["status"] = "accessible"
         checks = (
-            ("free_space", lambda: inspect_saved_database_space(connection_name)),
-            ("alert_log", lambda: inspect_saved_alert_log_errors(connection_name, last_records)),
-            ("backup_logs", lambda: inspect_saved_backup_log_errors(connection_name, remote_log_root, last_records)),
-            ("copy_jobs", lambda: collect_saved_backup_scripts(connection_name, backup_scripts_root, copy_local_root)),
+            ("free_space", lambda name=connection_name: inspect_saved_database_space(name)),
+            ("alert_log", lambda name=connection_name: inspect_saved_alert_log_errors(name, last_records)),
+            ("backup_logs", lambda name=connection_name: inspect_saved_backup_log_errors(name, remote_log_root, last_records)),
+            ("copy_jobs", lambda name=connection_name: collect_saved_backup_scripts(name, backup_scripts_root, copy_local_root)),
         )
         for label, operation in checks:
             try:

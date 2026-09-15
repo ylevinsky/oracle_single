@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
+from tempfile import TemporaryDirectory
 import unittest
 from unittest import mock
 
@@ -100,6 +101,32 @@ class ServerTests(unittest.TestCase):
             status, is_issue = server._daily_backup_status("FLEX")
         self.assertEqual(status["status"], "no_errors_found")
         self.assertFalse(is_issue)
+
+    def test_daily_routine_default_recipient_uses_yaml_configuration(self):
+        with TemporaryDirectory() as directory:
+            config_path = Path(directory) / "config.yaml"
+            config_path.write_text('{"daily_routine":{"slack_user_id":"U0123456789"}}', encoding="utf-8")
+            with mock.patch.object(server, "DAILY_ROUTINE_CONFIG_FILE", config_path):
+                self.assertEqual(
+                    server._default_daily_routine_slack_user_id(), "U0123456789"
+                )
+
+    def test_open_slack_direct_message_returns_bot_channel(self):
+        response = mock.MagicMock()
+        response.read.return_value = b'{"ok": true, "channel": {"id": "D0123456789"}}'
+        with mock.patch.object(server, "_read_windows_credential", return_value="safe-token"), \
+             mock.patch.object(server, "urlopen") as urlopen:
+            urlopen.return_value.__enter__.return_value = response
+            channel_id = server._open_slack_direct_message("U0123456789")
+        self.assertEqual(channel_id, "D0123456789")
+        self.assertNotIn("safe-token", urlopen.call_args.args[0].data.decode("utf-8"))
+
+    def test_daily_routine_default_recipient_allows_missing_configuration(self):
+        with TemporaryDirectory() as directory, \
+             mock.patch.object(server, "DAILY_ROUTINE_CONFIG_FILE", Path(directory) / "missing.yaml"):
+            self.assertEqual(
+                server._default_daily_routine_slack_user_id(), ""
+            )
 
     def test_daily_routine_posts_compact_slack_summary_when_requested(self):
         result = {

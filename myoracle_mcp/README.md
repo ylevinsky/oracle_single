@@ -27,9 +27,11 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
   returns per-target capacity results or sanitized connection errors.
 - `daily_rutione_check`: on demand, checks every saved target's job statuses
   (excluding schema-copy/Data Pump artifacts), backup-log status, and tablespace
-  capacity, returning per-target issues. Supply a
-  Slack channel, DM, or group-DM ID through `slack_channel_id` to send a compact
-  aggregate notification using the `MCP/Slack` Credential Manager token.
+  capacity, returning per-target issues. It sends a compact aggregate
+  notification to the `daily_routine.slack_user_id` configured in `config.yaml`.
+  The file uses JSON-compatible YAML and stores a Slack user ID, so the bot opens
+  its own DM channel. Supply `slack_channel_id` to override that destination.
+  The `MCP/Slack` Credential Manager token is used for delivery.
 - `resolve_slack_channel`: resolves a visible Slack channel name (such as
   `essence`) to the ID required by `daily_rutione_check` notifications.
 - `list_top_sql_memory`: ranks non-Oracle-maintained SQL by shared-pool memory

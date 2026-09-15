@@ -30,6 +30,7 @@ from mcp.server.fastmcp import FastMCP
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 CONNECTIONS_FILE = REPOSITORY_ROOT / ".db" / "connections.json"
+DAILY_ROUTINE_CONFIG_FILE = Path(__file__).with_name("config.yaml")
 TOKEN_LIFETIME_SECONDS = 10 * 60
 
 mcp = FastMCP(
@@ -92,6 +93,20 @@ def _local_rag_database_url() -> str:
     if not url:
         raise RuntimeError("Set RAG_DATABASE_URL before using the local RAG database.")
     return url
+
+
+def _default_daily_routine_slack_user_id() -> str:
+    """Return the configured default Slack recipient user ID."""
+    try:
+        config = json.loads(DAILY_ROUTINE_CONFIG_FILE.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return ""
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Invalid daily routine YAML configuration: {exc.msg}") from exc
+    user_id = str(config.get("daily_routine", {}).get("slack_user_id", "")).strip()
+    if user_id and not re.fullmatch(r"U[A-Z0-9]{8,}", user_id):
+        raise RuntimeError("daily_routine.slack_user_id must be a Slack user ID")
+    return user_id
 
 
 def _read_windows_user_environment_variable(name: str) -> str:
@@ -208,6 +223,35 @@ def _send_daily_routine_slack_message(channel_id: str, result: dict[str, Any]) -
         "channel_id": normalized_channel_id,
         "message_ts": response_payload.get("ts"),
     }
+
+
+def _open_slack_direct_message(user_id: str) -> str:
+    """Open a bot-accessible direct message and return its channel ID."""
+    if not re.fullmatch(r"U[A-Z0-9]{8,}", user_id):
+        raise ValueError("slack user ID must start with U")
+    token = _read_windows_credential("MCP/Slack")
+    request = Request(
+        "https://slack.com/api/conversations.open",
+        data=json.dumps({"users": user_id}).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json; charset=utf-8",
+        },
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=20) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        raise RuntimeError(f"Slack DM open failed with HTTP status {exc.code}") from exc
+    except URLError as exc:
+        raise RuntimeError("Slack DM open could not reach the Slack API") from exc
+    if not payload.get("ok"):
+        raise RuntimeError(f"Slack DM open rejected: {payload.get('error', 'unknown_error')}")
+    channel_id = str(payload.get("channel", {}).get("id", "")).strip()
+    if not re.fullmatch(r"D[A-Z0-9]{8,}", channel_id):
+        raise RuntimeError("Slack DM open returned no valid direct-message channel ID")
+    return channel_id
 
 
 def _is_copy_schema_job(job: dict[str, Any]) -> bool:
@@ -1071,10 +1115,15 @@ def daily_rutione_check(
         "failed_count": sum(item["status"] == "failed" for item in targets),
         "targets": targets,
     }
-    if slack_channel_id is not None:
+    notification_channel_id = slack_channel_id
+    if not notification_channel_id:
+        default_user_id = _default_daily_routine_slack_user_id()
+        if default_user_id:
+            notification_channel_id = _open_slack_direct_message(default_user_id)
+    if notification_channel_id:
         try:
             result["slack_notification"] = _send_daily_routine_slack_message(
-                slack_channel_id, result
+                notification_channel_id, result
             )
         except Exception as exc:
             result["slack_notification"] = {

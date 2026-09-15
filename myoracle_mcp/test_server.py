@@ -97,10 +97,15 @@ class ServerTests(unittest.TestCase):
             server,
             "inspect_saved_backup_log_errors",
             return_value={"status": "no_errors_found", "files_considered": "up to 20", "match_count": 0},
+        ), mock.patch.object(
+            server,
+            "run_ssh_command",
+            return_value={"stdout": '"\\Oracle\\Daily_RMAN_Backup"'},
         ):
             status, is_issue = server._daily_backup_status("FLEX")
         self.assertEqual(status["status"], "no_errors_found")
         self.assertFalse(is_issue)
+        self.assertEqual(status["scheduled_backup_tasks"], ['"\\Oracle\\Daily_RMAN_Backup"'])
 
     def test_daily_routine_default_recipient_uses_yaml_configuration(self):
         with TemporaryDirectory() as directory:
@@ -137,7 +142,11 @@ class ServerTests(unittest.TestCase):
             "failed_count": 0,
             "targets": [
                 {"connection_name": "FLEX", "status": "ok"},
-                {"connection_name": "HUN", "status": "issues"},
+                {
+                    "connection_name": "HUN",
+                    "status": "issues",
+                    "space_issues": [{"tablespace_name": "USERS", "free_percent": 9.5, "issue": "free_percent_below_threshold"}],
+                },
             ],
         }
         with mock.patch.object(server, "_read_windows_credential", return_value="safe-token"), \
@@ -149,9 +158,34 @@ class ServerTests(unittest.TestCase):
 
         self.assertTrue(notification["delivered"])
         self.assertEqual(notification["message_ts"], "123.456")
+        self.assertEqual(notification["message_count"], 1)
         request = urlopen.call_args.args[0]
         self.assertNotIn("safe-token", request.data.decode("utf-8"))
-        self.assertIn("HUN", request.data.decode("utf-8"))
+        self.assertIn("Space: USERS 9.50% free", request.data.decode("utf-8"))
+        self.assertNotIn("Refresh/job", request.data.decode("utf-8"))
+
+    def test_daily_routine_notification_splits_long_reports(self):
+        result = {
+            "minimum_free_percent": 15.0,
+            "target_count": 1,
+            "ok_count": 0,
+            "issue_count": 1,
+            "failed_count": 0,
+            "targets": [{
+                "connection_name": "FLEX",
+                "status": "issues",
+                "backup": {"status": "errors_found", "match_count": 1},
+                "job_issues": [],
+                "space_issues": [
+                    {"tablespace_name": f"TABLESPACE_{number:03d}", "free_percent": 9.5, "issue": "free_percent_below_threshold"}
+                    for number in range(30)
+                ],
+            }],
+        }
+        messages = server._daily_routine_notification_messages(result)
+        self.assertGreater(len(messages), 1)
+        self.assertLessEqual(len(messages), 3)
+        self.assertTrue(all(len(message) <= 830 for message in messages))
 
 
 if __name__ == "__main__":

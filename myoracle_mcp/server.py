@@ -176,52 +176,77 @@ def _read_windows_credential(target: str) -> str:
         advapi32.CredFree(credential_ptr)
 
 
+def _daily_routine_notification_messages(result: dict[str, Any]) -> list[str]:
+    """Format every daily-routine problem into at most three Slack messages."""
+    lines = [
+        "Oracle tablespace capacity: " + ("OK" if result["ok_count"] == result["target_count"] else "ATTENTION"),
+        f"Targets: {result['target_count']} | Below threshold: {result['issue_count']}",
+        f"Minimum free space: {result['minimum_free_percent']:g}%",
+    ]
+    for target in result["targets"]:
+        if not target.get("space_issues"):
+            continue
+        lines.append(f"\n{target['connection_name']} — {target['status'].upper()}")
+        for issue in target.get("space_issues", []):
+            lines.append(
+                f"Space: {issue['tablespace_name']} {issue['free_percent']:.2f}% free; {issue['issue']}"
+            )
+
+    messages: list[str] = []
+    current = ""
+    for line in lines:
+        candidate = f"{current}\n{line}" if current else line
+        if len(candidate) > 800 and current:
+            messages.append(current)
+            current = line
+        else:
+            current = candidate
+    if current:
+        messages.append(current)
+    if len(messages) > 3:
+        raise RuntimeError("Daily routine notification exceeds the three-message limit")
+    return [
+        f"Daily routine report {index}/{len(messages)}\n{message}"
+        for index, message in enumerate(messages, start=1)
+    ]
+
+
 def _send_daily_routine_slack_message(channel_id: str, result: dict[str, Any]) -> dict[str, Any]:
-    """Post a compact routine summary using the Credential Manager Slack token."""
+    """Post the complete bounded daily-routine report using the Slack token."""
     normalized_channel_id = channel_id.strip()
     if not re.fullmatch(r"[CDG][A-Z0-9]{8,}", normalized_channel_id):
         raise ValueError("slack_channel_id must be a Slack channel, DM, or group-DM ID")
 
-    affected_targets = [
-        item["connection_name"]
-        for item in result["targets"]
-        if item["status"] != "ok"
-    ]
-    status = "OK" if not affected_targets else "ATTENTION"
-    message = (
-        f"Oracle daily routine: {status}\n"
-        f"Targets: {result['target_count']} | OK: {result['ok_count']} | "
-        f"Issues: {result['issue_count']} | Failed: {result['failed_count']}\n"
-        f"Affected: {', '.join(affected_targets) if affected_targets else 'none'}\n"
-        f"Minimum free space: {result['minimum_free_percent']:g}%"
-    )
-    payload = json.dumps({"channel": normalized_channel_id, "text": message}).encode("utf-8")
     token = _read_windows_credential("MCP/Slack")
-    request = Request(
-        "https://slack.com/api/chat.postMessage",
-        data=payload,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json; charset=utf-8",
-        },
-        method="POST",
-    )
-    try:
-        with urlopen(request, timeout=20) as response:
-            response_payload = json.loads(response.read().decode("utf-8"))
-    except HTTPError as exc:
-        raise RuntimeError(f"Slack notification failed with HTTP status {exc.code}") from exc
-    except URLError as exc:
-        raise RuntimeError("Slack notification could not reach the Slack API") from exc
-
-    if not response_payload.get("ok"):
-        raise RuntimeError(
-            f"Slack notification rejected: {response_payload.get('error', 'unknown_error')}"
+    deliveries = []
+    for message in _daily_routine_notification_messages(result):
+        request = Request(
+            "https://slack.com/api/chat.postMessage",
+            data=json.dumps({"channel": normalized_channel_id, "text": message}).encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json; charset=utf-8",
+            },
+            method="POST",
         )
+        try:
+            with urlopen(request, timeout=20) as response:
+                response_payload = json.loads(response.read().decode("utf-8"))
+        except HTTPError as exc:
+            raise RuntimeError(f"Slack notification failed with HTTP status {exc.code}") from exc
+        except URLError as exc:
+            raise RuntimeError("Slack notification could not reach the Slack API") from exc
+        if not response_payload.get("ok"):
+            raise RuntimeError(
+                f"Slack notification rejected: {response_payload.get('error', 'unknown_error')}"
+            )
+        deliveries.append(response_payload.get("ts"))
     return {
         "delivered": True,
         "channel_id": normalized_channel_id,
-        "message_ts": response_payload.get("ts"),
+        "message_ts": deliveries[0],
+        "message_count": len(deliveries),
+        "message_timestamps": deliveries,
     }
 
 
@@ -266,10 +291,18 @@ def _daily_backup_status(connection_name: str) -> tuple[dict[str, Any], bool]:
     try:
         backup = inspect_saved_backup_log_errors(connection_name)
         status = str(backup.get("status", "unknown"))
+        task_query = run_ssh_command(
+            connection_name, "schtasks /query /fo CSV /v", timeout_seconds=60
+        )
+        scheduled_tasks = [
+            line for line in task_query["stdout"].splitlines()
+            if re.search(r"(?i)rman|backup", line)
+        ]
         return {
             "status": status,
             "files_considered": backup.get("files_considered"),
             "match_count": backup.get("match_count"),
+            "scheduled_backup_tasks": scheduled_tasks,
         }, status != "no_errors_found"
     except Exception as exc:
         return {
@@ -1029,9 +1062,8 @@ def daily_rutione_check(
 ) -> dict[str, Any]:
     """Check job status and tablespace capacity for every saved Oracle target.
 
-    This is an on-demand, read-only summary. It includes non-copy Scheduler and
-    legacy jobs, backup-log status, and tablespaces below the requested free
-    percentage or with no remaining AUTOEXTEND headroom.
+    This is an on-demand, read-only tablespace-capacity summary. It reports only
+    tablespaces with free space below the requested percentage.
     """
     if not 0 <= minimum_free_percent <= 100:
         raise ValueError("minimum_free_percent must be between 0 and 100")
@@ -1039,43 +1071,8 @@ def daily_rutione_check(
     targets: list[dict[str, Any]] = []
     for connection_name in connections_list():
         item: dict[str, Any] = {"connection_name": connection_name}
-        backup_status, backup_issue = _daily_backup_status(connection_name)
-        item["backup"] = backup_status
         try:
-            jobs = list_custom_jobs(connection_name)
             space = inspect_saved_database_space(connection_name)
-            job_issues = [
-                {
-                    "type": "scheduler_job",
-                    "owner": job.get("owner"),
-                    "job_name": job.get("job_name"),
-                    "state": job.get("state"),
-                    "enabled": job.get("enabled"),
-                    "failure_count": job.get("failure_count"),
-                }
-                for job in jobs["scheduler_jobs"]
-                if not _is_copy_schema_job(job)
-                and (
-                    str(job.get("state", "")).upper() in {"BROKEN", "FAILED", "STOPPED"}
-                or str(job.get("enabled", "")).upper() in {"FALSE", "NO"}
-                or int(job.get("failure_count") or 0) > 0
-                )
-            ]
-            job_issues.extend(
-                {
-                    "type": "legacy_job",
-                    "schema_user": job.get("schema_user"),
-                    "job": job.get("job"),
-                    "broken": job.get("broken"),
-                    "failures": job.get("failures"),
-                }
-                for job in jobs["legacy_jobs"]
-                if not _is_copy_schema_job(job)
-                and (
-                    str(job.get("broken", "")).upper() in {"Y", "YES", "TRUE"}
-                or int(job.get("failures") or 0) > 0
-                )
-            )
             space_issues = [
                 {
                     **tablespace,
@@ -1087,16 +1084,10 @@ def daily_rutione_check(
                 }
                 for tablespace in space["tablespaces"]
                 if tablespace["free_percent"] < minimum_free_percent
-                or (
-                    tablespace["autoextend_files"] > 0
-                    and tablespace["max_bytes"] <= tablespace["allocated_bytes"]
-                )
             ]
             item.update({
-                "status": "ok" if not job_issues and not space_issues and not backup_issue else "issues",
-                "jobs": jobs,
+                "status": "ok" if not space_issues else "issues",
                 "space": space,
-                "job_issues": job_issues,
                 "space_issues": space_issues,
             })
         except Exception as exc:

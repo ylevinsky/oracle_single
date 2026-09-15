@@ -25,12 +25,13 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
   space, alert-log errors, backup-log errors, and copies backup job scripts.
 - `inspect_all_saved_database_space`: checks every saved Oracle target and
   returns per-target capacity results or sanitized connection errors.
-- `daily_rutione_check`: on demand, checks every saved target's job statuses
-  (excluding schema-copy/Data Pump artifacts), backup-log status, and tablespace
-  capacity, returning per-target issues. It sends a compact aggregate
+- `daily_rutione_check`: on demand, checks tablespace capacity and reports only
+  tablespaces below the requested free-space threshold. It sends a detailed aggregate
   notification to the `daily_routine.slack_user_id` configured in `config.yaml`.
   The file uses JSON-compatible YAML and stores a Slack user ID, so the bot opens
-  its own DM channel. Supply `slack_channel_id` to override that destination.
+  its own DM channel. The complete report is split into readable parts (up to
+  three messages).
+  Supply `slack_channel_id` to override that destination.
   The `MCP/Slack` Credential Manager token is used for delivery.
 - `resolve_slack_channel`: resolves a visible Slack channel name (such as
   `essence`) to the ID required by `daily_rutione_check` notifications.

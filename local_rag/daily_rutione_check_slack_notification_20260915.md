@@ -1,0 +1,8 @@
+# Daily routine Slack notification - 2026-09-15
+
+- User request and scope: Extend the `daily_rutione_check` Oracle MCP tool to send the requester a Slack status message and run it across saved Oracle targets.
+- Implementation: `daily_rutione_check` now accepts an optional `slack_channel_id`. When provided, it posts a compact aggregate result through Slack `chat.postMessage`; the Slack bot token is read only from Windows Credential Manager target `MCP/Slack`. The message contains aggregate counts, affected target names, and the free-space threshold. It contains no credentials, database values, job names, or tablespace names.
+- Verification: `python -m py_compile myoracle_mcp/server.py`, `python -m unittest -v test_server.py`, and `git diff --check` passed. The new regression test verifies the compact payload, Slack timestamp handling, and that the token is not embedded in the request body.
+- Live-run blocker: Super-MCP package discovery and retry after `restart_package` reported both `myoracle` and `slack` unavailable with `MCP error -32000: Connection closed`; diagnostics reported no child spawn and no captured stderr. No Oracle, Slack API, or Slack workspace connection was attempted by this run, and no status message was delivered.
+- Current resolution: Reload the parent Codex/Super-MCP session so it starts the configured local `myoracle` and `slack` launchers. Then invoke `daily_rutione_check` with the intended Slack channel or DM ID and verify the returned `slack_notification.delivered` and message timestamp.
+- Security: No Slack credential, token, workspace content, direct-message ID, Oracle credentials, or database results were recorded.

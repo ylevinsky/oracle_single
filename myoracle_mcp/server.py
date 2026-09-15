@@ -14,6 +14,8 @@ import subprocess
 import sys
 import threading
 import time
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 from pathlib import Path
 from typing import Any
 import xml.etree.ElementTree as ElementTree
@@ -140,6 +142,55 @@ def _read_windows_credential(target: str) -> str:
         return blob.decode("utf-16-le").rstrip("\x00")
     finally:
         advapi32.CredFree(credential_ptr)
+
+
+def _send_daily_routine_slack_message(channel_id: str, result: dict[str, Any]) -> dict[str, Any]:
+    """Post a compact routine summary using the Credential Manager Slack token."""
+    normalized_channel_id = channel_id.strip()
+    if not re.fullmatch(r"[CDG][A-Z0-9]{8,}", normalized_channel_id):
+        raise ValueError("slack_channel_id must be a Slack channel, DM, or group-DM ID")
+
+    affected_targets = [
+        item["connection_name"]
+        for item in result["targets"]
+        if item["status"] != "ok"
+    ]
+    status = "OK" if not affected_targets else "ATTENTION"
+    message = (
+        f"Oracle daily routine: {status}\n"
+        f"Targets: {result['target_count']} | OK: {result['ok_count']} | "
+        f"Issues: {result['issue_count']} | Failed: {result['failed_count']}\n"
+        f"Affected: {', '.join(affected_targets) if affected_targets else 'none'}\n"
+        f"Minimum free space: {result['minimum_free_percent']:g}%"
+    )
+    payload = json.dumps({"channel": normalized_channel_id, "text": message}).encode("utf-8")
+    token = _read_windows_credential("MCP/Slack")
+    request = Request(
+        "https://slack.com/api/chat.postMessage",
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json; charset=utf-8",
+        },
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=20) as response:
+            response_payload = json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        raise RuntimeError(f"Slack notification failed with HTTP status {exc.code}") from exc
+    except URLError as exc:
+        raise RuntimeError("Slack notification could not reach the Slack API") from exc
+
+    if not response_payload.get("ok"):
+        raise RuntimeError(
+            f"Slack notification rejected: {response_payload.get('error', 'unknown_error')}"
+        )
+    return {
+        "delivered": True,
+        "channel_id": normalized_channel_id,
+        "message_ts": response_payload.get("ts"),
+    }
 
 
 def _fingerprint(connection_name: str, connection: dict[str, Any]) -> str:
@@ -847,6 +898,7 @@ def inspect_all_saved_database_space() -> dict[str, Any]:
 @mcp.tool()
 def daily_rutione_check(
     minimum_free_percent: float = 15.0,
+    slack_channel_id: str | None = None,
 ) -> dict[str, Any]:
     """Check job status and tablespace capacity for every saved Oracle target.
 
@@ -919,7 +971,7 @@ def daily_rutione_check(
             })
         targets.append(item)
 
-    return {
+    result = {
         "check": "daily_rutione_check",
         "minimum_free_percent": minimum_free_percent,
         "target_count": len(targets),
@@ -928,6 +980,17 @@ def daily_rutione_check(
         "failed_count": sum(item["status"] == "failed" for item in targets),
         "targets": targets,
     }
+    if slack_channel_id is not None:
+        try:
+            result["slack_notification"] = _send_daily_routine_slack_message(
+                slack_channel_id, result
+            )
+        except Exception as exc:
+            result["slack_notification"] = {
+                "delivered": False,
+                "error": f"{type(exc).__name__}: {exc}",
+            }
+    return result
 
 
 @mcp.tool()

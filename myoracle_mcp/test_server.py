@@ -61,6 +61,31 @@ class ServerTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "RAG_DATABASE_URL"):
                 server.inspect_local_rag_database()
 
+    def test_daily_routine_posts_compact_slack_summary_when_requested(self):
+        result = {
+            "minimum_free_percent": 15.0,
+            "target_count": 2,
+            "ok_count": 1,
+            "issue_count": 1,
+            "failed_count": 0,
+            "targets": [
+                {"connection_name": "FLEX", "status": "ok"},
+                {"connection_name": "HUN", "status": "issues"},
+            ],
+        }
+        with mock.patch.object(server, "_read_windows_credential", return_value="safe-token"), \
+             mock.patch.object(server, "urlopen") as urlopen:
+            response = mock.MagicMock()
+            response.read.return_value = b'{"ok": true, "ts": "123.456"}'
+            urlopen.return_value.__enter__.return_value = response
+            notification = server._send_daily_routine_slack_message("D03JEDPH5CH", result)
+
+        self.assertTrue(notification["delivered"])
+        self.assertEqual(notification["message_ts"], "123.456")
+        request = urlopen.call_args.args[0]
+        self.assertNotIn("safe-token", request.data.decode("utf-8"))
+        self.assertIn("HUN", request.data.decode("utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()

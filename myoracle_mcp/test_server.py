@@ -57,9 +57,23 @@ class ServerTests(unittest.TestCase):
         self.assertTrue(result["healthy"])
 
     def test_rag_health_check_requires_environment_url(self):
-        with mock.patch.dict(server.os.environ, {}, clear=True):
+        with mock.patch.dict(server.os.environ, {}, clear=True), \
+             mock.patch.object(server, "_read_windows_user_environment_variable", return_value=""):
             with self.assertRaisesRegex(RuntimeError, "RAG_DATABASE_URL"):
                 server.inspect_local_rag_database()
+
+    def test_rag_health_check_falls_back_to_windows_user_environment(self):
+        database = _Database()
+        with mock.patch.dict(server.os.environ, {}, clear=True), \
+             mock.patch.object(
+                 server,
+                 "_read_windows_user_environment_variable",
+                 return_value="postgresql://safe-user-environment",
+             ), \
+             mock.patch.object(server.psycopg, "connect", return_value=database) as connect:
+            result = server.inspect_local_rag_database()
+        connect.assert_called_once_with("postgresql://safe-user-environment")
+        self.assertTrue(result["healthy"])
 
     def test_daily_routine_posts_compact_slack_summary_when_requested(self):
         result = {

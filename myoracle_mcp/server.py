@@ -84,11 +84,27 @@ def _read_connection(connection_name: str) -> dict[str, Any]:
 
 
 def _local_rag_database_url() -> str:
-    """Return the locally configured RAG URL without reading it from the registry."""
+    """Return the RAG URL from this process or the Windows user environment."""
     url = os.environ.get("RAG_DATABASE_URL", "").strip()
+    if not url:
+        url = _read_windows_user_environment_variable("RAG_DATABASE_URL")
     if not url:
         raise RuntimeError("Set RAG_DATABASE_URL before using the local RAG database.")
     return url
+
+
+def _read_windows_user_environment_variable(name: str) -> str:
+    """Read a non-persistent user environment value without exposing it."""
+    if sys.platform != "win32":
+        return ""
+    try:
+        import winreg
+
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Environment") as key:
+            value, _ = winreg.QueryValueEx(key, name)
+    except (FileNotFoundError, OSError):
+        return ""
+    return str(value).strip()
 
 
 def _credential_target(connection_name: str, connection: dict[str, Any]) -> str:

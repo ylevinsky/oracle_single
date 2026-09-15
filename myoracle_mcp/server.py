@@ -444,6 +444,79 @@ def upload_files_to_saved_host(
     return {"connection_name": connection_name, "remote_directory": remote, "uploaded": uploaded}
 
 
+def _validated_windows_path(path: str, label: str) -> str:
+    normalized = path.replace("\\", "/")
+    if not re.fullmatch(r"[A-Za-z]:/[^<>:\"|?*]+", normalized):
+        raise ValueError(f"{label} must be an absolute Windows drive path")
+    return normalized
+
+
+@mcp.tool()
+def inspect_saved_remote_file_hashes(
+    connection_name: str, remote_paths: list[str]
+) -> dict[str, Any]:
+    """Return SHA-256 and byte count for explicitly named remote files over SFTP."""
+    if not remote_paths:
+        raise ValueError("remote_paths must not be empty")
+    paths = [_validated_windows_path(path, "remote_paths entry") for path in remote_paths]
+    client = _open_ssh(connection_name)
+    try:
+        sftp = client.open_sftp()
+        try:
+            files = []
+            for path in paths:
+                digest = hashlib.sha256()
+                with sftp.open(path, "rb") as source:
+                    while chunk := source.read(1024 * 1024):
+                        digest.update(chunk)
+                files.append({"path": path, "sha256": digest.hexdigest(), "bytes": sftp.stat(path).st_size})
+        finally:
+            sftp.close()
+    finally:
+        client.close()
+    return {"connection_name": connection_name, "files": files}
+
+
+@mcp.tool()
+def backup_saved_remote_files(
+    connection_name: str, remote_paths: list[str], backup_directory: str
+) -> dict[str, Any]:
+    """Copy explicitly named remote files to an absolute backup directory over SFTP."""
+    if not remote_paths:
+        raise ValueError("remote_paths must not be empty")
+    paths = [_validated_windows_path(path, "remote_paths entry") for path in remote_paths]
+    backup = _validated_windows_path(backup_directory, "backup_directory").rstrip("/")
+    client = _open_ssh(connection_name)
+    try:
+        sftp = client.open_sftp()
+        try:
+            try:
+                sftp.mkdir(backup)
+            except OSError:
+                pass
+            copied = []
+            for path in paths:
+                target = f"{backup}/{Path(path).name}"
+                with sftp.open(path, "rb") as source, sftp.open(target, "wb") as destination:
+                    while chunk := source.read(1024 * 1024):
+                        destination.write(chunk)
+                copied.append(target)
+        finally:
+            sftp.close()
+    finally:
+        client.close()
+    return {"connection_name": connection_name, "backup_directory": backup, "copied": copied}
+
+
+@mcp.tool()
+def inspect_saved_scheduled_task(connection_name: str, task_name: str) -> dict[str, Any]:
+    """Return the registered definition of one Windows scheduled task without changing it."""
+    if not re.fullmatch(r"\\[A-Za-z0-9_. ()-]+(?:\\[A-Za-z0-9_. ()-]+)*", task_name):
+        raise ValueError("task_name must be an absolute Windows Task Scheduler path")
+    result = run_ssh_command(connection_name, f'schtasks /query /tn "{task_name}" /fo LIST /v')
+    return {"connection_name": connection_name, "task_name": task_name, **result}
+
+
 def _powershell_literal(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
 

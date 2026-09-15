@@ -75,6 +75,17 @@ class ServerTests(unittest.TestCase):
         connect.assert_called_once_with("postgresql://safe-user-environment")
         self.assertTrue(result["healthy"])
 
+    def test_resolve_slack_channel_returns_visible_channel_id(self):
+        response = mock.MagicMock()
+        response.read.return_value = b'{"ok": true, "channels": [{"id": "C0123456789", "name": "essence"}], "response_metadata": {"next_cursor": ""}}'
+        with mock.patch.object(server, "_read_windows_credential", return_value="safe-token"), \
+             mock.patch.object(server, "urlopen") as urlopen:
+            urlopen.return_value.__enter__.return_value = response
+            result = server.resolve_slack_channel("#essence")
+        self.assertEqual(result, {"channel_name": "essence", "channel_id": "C0123456789"})
+        request = urlopen.call_args.args[0]
+        self.assertNotIn("safe-token", request.full_url)
+
     def test_daily_routine_posts_compact_slack_summary_when_requested(self):
         result = {
             "minimum_free_percent": 15.0,

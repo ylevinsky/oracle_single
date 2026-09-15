@@ -29,6 +29,8 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
   and tablespace capacity, returning per-target job and space issues. Supply a
   Slack channel, DM, or group-DM ID through `slack_channel_id` to send a compact
   aggregate notification using the `MCP/Slack` Credential Manager token.
+- `resolve_slack_channel`: resolves a visible Slack channel name (such as
+  `essence`) to the ID required by `daily_rutione_check` notifications.
 - `list_top_sql_memory`: ranks non-Oracle-maintained SQL by shared-pool memory
   (`SHARABLE_MEM + PERSISTENT_MEM + RUNTIME_MEM`).
 - `inspect_local_rag_database`: checks the local RAG PostgreSQL database,

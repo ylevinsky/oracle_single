@@ -15,6 +15,7 @@ import sys
 import threading
 import time
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from pathlib import Path
 from typing import Any
@@ -207,6 +208,48 @@ def _send_daily_routine_slack_message(channel_id: str, result: dict[str, Any]) -
         "channel_id": normalized_channel_id,
         "message_ts": response_payload.get("ts"),
     }
+
+
+@mcp.tool()
+def resolve_slack_channel(channel_name: str) -> dict[str, str]:
+    """Resolve a visible Slack channel name to the ID required by notification tools."""
+    normalized_name = channel_name.strip().lstrip("#").lower()
+    if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,79}", normalized_name):
+        raise ValueError("channel_name must be a valid Slack channel name")
+
+    token = _read_windows_credential("MCP/Slack")
+    cursor = ""
+    for _ in range(10):
+        query = {
+            "exclude_archived": "true",
+            "limit": "200",
+            "types": "public_channel,private_channel",
+        }
+        if cursor:
+            query["cursor"] = cursor
+        request = Request(
+            "https://slack.com/api/conversations.list?" + urlencode(query),
+            headers={"Authorization": f"Bearer {token}"},
+            method="GET",
+        )
+        try:
+            with urlopen(request, timeout=20) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except HTTPError as exc:
+            raise RuntimeError(f"Slack channel lookup failed with HTTP status {exc.code}") from exc
+        except URLError as exc:
+            raise RuntimeError("Slack channel lookup could not reach the Slack API") from exc
+        if not payload.get("ok"):
+            raise RuntimeError(
+                f"Slack channel lookup rejected: {payload.get('error', 'unknown_error')}"
+            )
+        for channel in payload.get("channels", []):
+            if str(channel.get("name", "")).lower() == normalized_name:
+                return {"channel_name": channel["name"], "channel_id": channel["id"]}
+        cursor = str(payload.get("response_metadata", {}).get("next_cursor") or "")
+        if not cursor:
+            break
+    raise ValueError(f"Slack channel not found or not visible to the bot: #{normalized_name}")
 
 
 def _fingerprint(connection_name: str, connection: dict[str, Any]) -> str:

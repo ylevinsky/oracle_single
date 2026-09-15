@@ -179,18 +179,23 @@ def _read_windows_credential(target: str) -> str:
 def _daily_routine_notification_messages(result: dict[str, Any]) -> list[str]:
     """Format every daily-routine problem into at most three Slack messages."""
     lines = [
-        "Oracle tablespace capacity: " + ("OK" if result["ok_count"] == result["target_count"] else "ATTENTION"),
-        f"Targets: {result['target_count']} | Below threshold: {result['issue_count']}",
+        "Oracle capacity and RMAN backup alerts: " + ("OK" if result["ok_count"] == result["target_count"] else "ATTENTION"),
+        f"Targets: {result['target_count']} | Alerts: {result['issue_count']}",
         f"Minimum free space: {result['minimum_free_percent']:g}%",
     ]
     for target in result["targets"]:
-        if not target.get("space_issues"):
+        if not target.get("space_issues") and not target.get("backup_alerts"):
             continue
         lines.append(f"\n{target['connection_name']} — {target['status'].upper()}")
         for issue in target.get("space_issues", []):
             lines.append(
                 f"Space: {issue['tablespace_name']} {issue['free_percent']:.2f}% free; {issue['issue']}"
             )
+        for alert in target.get("backup_alerts", []):
+            if alert["type"] == "failed_backup":
+                lines.append(f"Backup ALERT: {alert['input_type']} {alert['status']}; ended {alert['end_time']}; size {alert['backup_size']}")
+            else:
+                lines.append(f"Backup ALERT: no {alert['input_type']} completed in {alert['days']} days")
 
     messages: list[str] = []
     current = ""
@@ -309,6 +314,23 @@ def _daily_backup_status(connection_name: str) -> tuple[dict[str, Any], bool]:
             "status": "unverified",
             "error": f"{type(exc).__name__}: {exc}",
         }, True
+
+
+def _rman_backup_alerts(connection_name: str) -> list[dict[str, Any]]:
+    """Return only RMAN conditions that require a daily alert."""
+    connection = _read_connection(connection_name)
+    columns = "session_key, input_type, status, to_char(start_time, 'YYYY-MM-DD HH24:MI:SS'), to_char(end_time, 'YYYY-MM-DD HH24:MI:SS'), output_bytes_display"
+    alerts: list[dict[str, Any]] = []
+    with _connect(connection) as database:
+        with database.cursor() as cursor:
+            for input_type, days, label in (("DB FULL", 14, "missing_full"), ("DB INCR", 3, "missing_incremental")):
+                cursor.execute(f"select {columns} from v$rman_backup_job_details where status = 'COMPLETED' and input_type = :input_type and start_time > sysdate - :days order by end_time desc fetch first 1 row only", {"input_type": input_type, "days": days})
+                if cursor.fetchone() is None:
+                    alerts.append({"type": label, "input_type": input_type, "days": days})
+            cursor.execute(f"select {columns} from v$rman_backup_job_details where status != 'COMPLETED' and start_time > sysdate - 14 order by end_time desc")
+            for row in cursor:
+                alerts.append({"type": "failed_backup", "session_key": row[0], "input_type": row[1], "status": row[2], "start_time": row[3], "end_time": row[4], "backup_size": row[5]})
+    return alerts
 
 
 @mcp.tool()
@@ -1062,8 +1084,8 @@ def daily_rutione_check(
 ) -> dict[str, Any]:
     """Check job status and tablespace capacity for every saved Oracle target.
 
-    This is an on-demand, read-only tablespace-capacity summary. It reports only
-    tablespaces with free space below the requested percentage.
+    This is an on-demand, read-only summary of low tablespace capacity and RMAN
+    backup failures, missing incremental backups, or missing full backups.
     """
     if not 0 <= minimum_free_percent <= 100:
         raise ValueError("minimum_free_percent must be between 0 and 100")
@@ -1072,6 +1094,7 @@ def daily_rutione_check(
     for connection_name in connections_list():
         item: dict[str, Any] = {"connection_name": connection_name}
         try:
+            backup_alerts = _rman_backup_alerts(connection_name)
             space = inspect_saved_database_space(connection_name)
             space_issues = [
                 {
@@ -1086,9 +1109,10 @@ def daily_rutione_check(
                 if tablespace["free_percent"] < minimum_free_percent
             ]
             item.update({
-                "status": "ok" if not space_issues else "issues",
+                "status": "ok" if not space_issues and not backup_alerts else "issues",
                 "space": space,
                 "space_issues": space_issues,
+                "backup_alerts": backup_alerts,
             })
         except Exception as exc:
             item.update({

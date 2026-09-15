@@ -194,7 +194,7 @@ def _daily_routine_notification_messages(result: dict[str, Any]) -> list[str]:
             )
         for alert in target.get("backup_alerts", []):
             if alert["type"] == "failed_backup":
-                lines.append(f"Backup ALERT: {alert['input_type']} {alert['status']}; ended {alert['end_time']}; size {alert['backup_size']}")
+                lines.append(f"Backup ALERT: {alert['status']}; ended {alert['end_time']}; size {alert['backup_size']}")
             else:
                 lines.append(
                     "Backup ALERT: no incremental level "
@@ -334,7 +334,7 @@ def _daily_backup_status(connection_name: str) -> tuple[dict[str, Any], bool]:
 def _rman_backup_alerts(connection_name: str) -> list[dict[str, Any]]:
     """Return only RMAN conditions that require a daily alert."""
     connection = _read_connection(connection_name)
-    columns = "session_key, input_type, status, to_char(start_time, 'YYYY-MM-DD HH24:MI:SS'), to_char(end_time, 'YYYY-MM-DD HH24:MI:SS'), output_bytes_display"
+    columns = "session_key, status, to_char(start_time, 'YYYY-MM-DD HH24:MI:SS'), to_char(end_time, 'YYYY-MM-DD HH24:MI:SS'), output_bytes_display"
     completed_at_level_sql = f"""
         select {columns}
         from v$rman_backup_job_details job
@@ -367,7 +367,7 @@ def _rman_backup_alerts(connection_name: str) -> list[dict[str, Any]]:
                     )
             cursor.execute(f"select {columns} from v$rman_backup_job_details where status != 'COMPLETED' and start_time > sysdate - 14 order by end_time desc")
             for row in cursor:
-                alerts.append({"type": "failed_backup", "session_key": row[0], "input_type": row[1], "status": row[2], "start_time": row[3], "end_time": row[4], "backup_size": row[5]})
+                alerts.append({"type": "failed_backup", "session_key": row[0], "status": row[1], "start_time": row[2], "end_time": row[3], "backup_size": row[4]})
     return alerts
 
 

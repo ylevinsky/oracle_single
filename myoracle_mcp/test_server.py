@@ -110,7 +110,7 @@ class ServerTests(unittest.TestCase):
     def test_rman_backup_alerts_checks_backup_set_incremental_level(self):
         cursor = mock.MagicMock()
         cursor.fetchone.side_effect = [None, (101,)]
-        cursor.__iter__.return_value = []
+        cursor.__iter__.return_value = [(201, "FAILED", "start", "end", "1G")]
         database = mock.MagicMock()
         database.cursor.return_value.__enter__.return_value = cursor
         database.__enter__.return_value = database
@@ -118,12 +118,17 @@ class ServerTests(unittest.TestCase):
              mock.patch.object(server, "_connect", return_value=database):
             alerts = server._rman_backup_alerts("FLEX")
 
-        self.assertEqual(alerts, [{"type": "missing_full", "incremental_level": 0, "days": 14}])
+        self.assertEqual(alerts, [
+            {"type": "missing_full", "incremental_level": 0, "days": 14},
+            {"type": "failed_backup", "session_key": 201, "status": "FAILED", "start_time": "start", "end_time": "end", "backup_size": "1G"},
+        ])
         full_sql, full_binds = cursor.execute.call_args_list[0].args
         incremental_sql, incremental_binds = cursor.execute.call_args_list[1].args
         self.assertIn("v$backup_set_details", full_sql)
         self.assertIn("backup_set.incremental_level = :incremental_level", full_sql)
-        self.assertNotIn("input_type = :input_type", full_sql)
+        failed_sql = cursor.execute.call_args_list[2].args[0]
+        self.assertNotIn("input_type", full_sql.lower())
+        self.assertNotIn("input_type", failed_sql.lower())
         self.assertEqual(full_binds, {"incremental_level": 0, "days": 14})
         self.assertEqual(incremental_binds, {"incremental_level": 1, "days": 3})
 

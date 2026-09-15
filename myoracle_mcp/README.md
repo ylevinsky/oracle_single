@@ -26,7 +26,8 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
 - `inspect_all_saved_database_space`: checks every saved Oracle target and
   returns per-target capacity results or sanitized connection errors.
 - `daily_rutione_check`: on demand, checks every saved target's job statuses
-  and tablespace capacity, returning per-target job and space issues. Supply a
+  (excluding schema-copy/Data Pump artifacts), backup-log status, and tablespace
+  capacity, returning per-target issues. Supply a
   Slack channel, DM, or group-DM ID through `slack_channel_id` to send a compact
   aggregate notification using the `MCP/Slack` Credential Manager token.
 - `resolve_slack_channel`: resolves a visible Slack channel name (such as

@@ -210,6 +210,30 @@ def _send_daily_routine_slack_message(channel_id: str, result: dict[str, Any]) -
     }
 
 
+def _is_copy_schema_job(job: dict[str, Any]) -> bool:
+    """Exclude schema-copy/Data Pump artifacts from operational job alerts."""
+    owner = str(job.get("owner") or job.get("schema_user") or "").upper()
+    action = str(job.get("job_action") or job.get("what") or "").upper()
+    return owner == "COPY_SCHEMA" or "DBMS_DATAPUMP" in action
+
+
+def _daily_backup_status(connection_name: str) -> tuple[dict[str, Any], bool]:
+    """Return a compact, independently collected backup-log status."""
+    try:
+        backup = inspect_saved_backup_log_errors(connection_name)
+        status = str(backup.get("status", "unknown"))
+        return {
+            "status": status,
+            "files_considered": backup.get("files_considered"),
+            "match_count": backup.get("match_count"),
+        }, status != "no_errors_found"
+    except Exception as exc:
+        return {
+            "status": "unverified",
+            "error": f"{type(exc).__name__}: {exc}",
+        }, True
+
+
 @mcp.tool()
 def resolve_slack_channel(channel_name: str) -> dict[str, str]:
     """Resolve a visible Slack channel name to the ID required by notification tools."""
@@ -961,8 +985,8 @@ def daily_rutione_check(
 ) -> dict[str, Any]:
     """Check job status and tablespace capacity for every saved Oracle target.
 
-    This is an on-demand, read-only summary.  It includes non-Oracle-maintained
-    Scheduler and legacy jobs, and flags tablespaces below the requested free
+    This is an on-demand, read-only summary. It includes non-copy Scheduler and
+    legacy jobs, backup-log status, and tablespaces below the requested free
     percentage or with no remaining AUTOEXTEND headroom.
     """
     if not 0 <= minimum_free_percent <= 100:
@@ -971,6 +995,8 @@ def daily_rutione_check(
     targets: list[dict[str, Any]] = []
     for connection_name in connections_list():
         item: dict[str, Any] = {"connection_name": connection_name}
+        backup_status, backup_issue = _daily_backup_status(connection_name)
+        item["backup"] = backup_status
         try:
             jobs = list_custom_jobs(connection_name)
             space = inspect_saved_database_space(connection_name)
@@ -984,9 +1010,12 @@ def daily_rutione_check(
                     "failure_count": job.get("failure_count"),
                 }
                 for job in jobs["scheduler_jobs"]
-                if str(job.get("state", "")).upper() in {"BROKEN", "FAILED", "STOPPED"}
+                if not _is_copy_schema_job(job)
+                and (
+                    str(job.get("state", "")).upper() in {"BROKEN", "FAILED", "STOPPED"}
                 or str(job.get("enabled", "")).upper() in {"FALSE", "NO"}
                 or int(job.get("failure_count") or 0) > 0
+                )
             ]
             job_issues.extend(
                 {
@@ -997,8 +1026,11 @@ def daily_rutione_check(
                     "failures": job.get("failures"),
                 }
                 for job in jobs["legacy_jobs"]
-                if str(job.get("broken", "")).upper() in {"Y", "YES", "TRUE"}
+                if not _is_copy_schema_job(job)
+                and (
+                    str(job.get("broken", "")).upper() in {"Y", "YES", "TRUE"}
                 or int(job.get("failures") or 0) > 0
+                )
             )
             space_issues = [
                 {
@@ -1017,7 +1049,7 @@ def daily_rutione_check(
                 )
             ]
             item.update({
-                "status": "ok" if not job_issues and not space_issues else "issues",
+                "status": "ok" if not job_issues and not space_issues and not backup_issue else "issues",
                 "jobs": jobs,
                 "space": space,
                 "job_issues": job_issues,

@@ -86,6 +86,21 @@ class ServerTests(unittest.TestCase):
         request = urlopen.call_args.args[0]
         self.assertNotIn("safe-token", request.full_url)
 
+    def test_copy_schema_artifacts_are_excluded_from_daily_job_alerts(self):
+        self.assertTrue(server._is_copy_schema_job({"owner": "COPY_SCHEMA"}))
+        self.assertTrue(server._is_copy_schema_job({"job_action": "begin dbms_datapump.open(); end;"}))
+        self.assertFalse(server._is_copy_schema_job({"owner": "TRANSFER_USER", "job_action": "begin sync(); end;"}))
+
+    def test_daily_backup_status_summarizes_clean_backup(self):
+        with mock.patch.object(
+            server,
+            "inspect_saved_backup_log_errors",
+            return_value={"status": "no_errors_found", "files_considered": "up to 20", "match_count": 0},
+        ):
+            status, is_issue = server._daily_backup_status("FLEX")
+        self.assertEqual(status["status"], "no_errors_found")
+        self.assertFalse(is_issue)
+
     def test_daily_routine_posts_compact_slack_summary_when_requested(self):
         result = {
             "minimum_free_percent": 15.0,

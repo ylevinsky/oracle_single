@@ -107,6 +107,64 @@ class ServerTests(unittest.TestCase):
         self.assertFalse(is_issue)
         self.assertEqual(status["scheduled_backup_tasks"], ['"\\Oracle\\Daily_RMAN_Backup"'])
 
+    def test_rman_backup_alerts_checks_backup_set_incremental_level(self):
+        cursor = mock.MagicMock()
+        cursor.fetchone.side_effect = [None, (101,)]
+        cursor.__iter__.return_value = []
+        database = mock.MagicMock()
+        database.cursor.return_value.__enter__.return_value = cursor
+        database.__enter__.return_value = database
+        with mock.patch.object(server, "_read_connection", return_value={}), \
+             mock.patch.object(server, "_connect", return_value=database):
+            alerts = server._rman_backup_alerts("FLEX")
+
+        self.assertEqual(alerts, [{"type": "missing_full", "incremental_level": 0, "days": 14}])
+        full_sql, full_binds = cursor.execute.call_args_list[0].args
+        incremental_sql, incremental_binds = cursor.execute.call_args_list[1].args
+        self.assertIn("v$backup_set_details", full_sql)
+        self.assertIn("backup_set.incremental_level = :incremental_level", full_sql)
+        self.assertNotIn("input_type = :input_type", full_sql)
+        self.assertEqual(full_binds, {"incremental_level": 0, "days": 14})
+        self.assertEqual(incremental_binds, {"incremental_level": 1, "days": 3})
+
+    def test_spain_refresh_mv_alerts_returns_at_most_five_recent_errors(self):
+        recent_runs = [
+            {"state": "ERROR", "started_at": f"start-{number}", "ended_at": f"end-{number}", "output": f"ORA-{number}"}
+            for number in range(6)
+        ]
+        with mock.patch.object(
+            server,
+            "inspect_saved_sync_process_status",
+            return_value={"recent_runs": recent_runs},
+        ) as inspect:
+            alerts = server._spain_refresh_mv_alerts()
+        inspect.assert_called_once_with("es_db2_orclsp_sys", history_days=2)
+        self.assertEqual(len(alerts), 5)
+        self.assertEqual(alerts[0]["error"], "ORA-0")
+
+    def test_spain_refresh_mv_alerts_reports_missing_execution(self):
+        with mock.patch.object(
+            server,
+            "inspect_saved_sync_process_status",
+            return_value={"recent_runs": []},
+        ):
+            alerts = server._spain_refresh_mv_alerts()
+        self.assertEqual(
+            alerts,
+            [{"type": "refresh_mv_not_executed", "status": "failure", "hours": 48}],
+        )
+
+    def test_configure_daily_routine_schedule_creates_and_verifies_8am_task(self):
+        completed = mock.MagicMock(returncode=0, stdout="ok", stderr="")
+        with mock.patch.object(server.subprocess, "run", return_value=completed) as run:
+            result = server.configure_daily_routine_schedule()
+        self.assertEqual(result["schedule"], "daily 08:00")
+        self.assertEqual(result["task_name"], r"\OracleMCP\DailyRoutine")
+        create_command = run.call_args_list[0].args[0]
+        self.assertEqual(create_command[0], "schtasks.exe")
+        self.assertEqual(create_command[create_command.index("/st") + 1], "08:00")
+        self.assertEqual(create_command[create_command.index("/sc") + 1], "daily")
+
     def test_daily_routine_default_recipient_uses_yaml_configuration(self):
         with TemporaryDirectory() as directory:
             config_path = Path(directory) / "config.yaml"

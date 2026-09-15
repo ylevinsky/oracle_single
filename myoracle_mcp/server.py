@@ -31,6 +31,7 @@ from mcp.server.fastmcp import FastMCP
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 CONNECTIONS_FILE = REPOSITORY_ROOT / ".db" / "connections.json"
 DAILY_ROUTINE_CONFIG_FILE = Path(__file__).with_name("config.yaml")
+DAILY_ROUTINE_TASK_NAME = r"\OracleMCP\DailyRoutine"
 TOKEN_LIFETIME_SECONDS = 10 * 60
 
 mcp = FastMCP(
@@ -179,12 +180,12 @@ def _read_windows_credential(target: str) -> str:
 def _daily_routine_notification_messages(result: dict[str, Any]) -> list[str]:
     """Format every daily-routine problem into at most three Slack messages."""
     lines = [
-        "Oracle capacity and RMAN backup alerts: " + ("OK" if result["ok_count"] == result["target_count"] else "ATTENTION"),
+        "Oracle capacity, RMAN backup, and Spain refresh alerts: " + ("OK" if result["ok_count"] == result["target_count"] else "ATTENTION"),
         f"Targets: {result['target_count']} | Alerts: {result['issue_count']}",
         f"Minimum free space: {result['minimum_free_percent']:g}%",
     ]
     for target in result["targets"]:
-        if not target.get("space_issues") and not target.get("backup_alerts"):
+        if not target.get("space_issues") and not target.get("backup_alerts") and not target.get("refresh_mv_alerts"):
             continue
         lines.append(f"\n{target['connection_name']} — {target['status'].upper()}")
         for issue in target.get("space_issues", []):
@@ -195,7 +196,21 @@ def _daily_routine_notification_messages(result: dict[str, Any]) -> list[str]:
             if alert["type"] == "failed_backup":
                 lines.append(f"Backup ALERT: {alert['input_type']} {alert['status']}; ended {alert['end_time']}; size {alert['backup_size']}")
             else:
-                lines.append(f"Backup ALERT: no {alert['input_type']} completed in {alert['days']} days")
+                lines.append(
+                    "Backup ALERT: no incremental level "
+                    f"{alert['incremental_level']} completed in {alert['days']} days"
+                )
+        for alert in target.get("refresh_mv_alerts", []):
+            if alert["type"] == "refresh_mv_error":
+                lines.append(
+                    "Refresh-MV ALERT: ERROR; "
+                    f"ended {alert['ended_at']}; {alert['error']}"
+                )
+            else:
+                lines.append(
+                    "Refresh-MV ALERT: status FAILURE; not executed in "
+                    f"the last {alert['hours']} hours"
+                )
 
     messages: list[str] = []
     current = ""
@@ -320,16 +335,71 @@ def _rman_backup_alerts(connection_name: str) -> list[dict[str, Any]]:
     """Return only RMAN conditions that require a daily alert."""
     connection = _read_connection(connection_name)
     columns = "session_key, input_type, status, to_char(start_time, 'YYYY-MM-DD HH24:MI:SS'), to_char(end_time, 'YYYY-MM-DD HH24:MI:SS'), output_bytes_display"
+    completed_at_level_sql = f"""
+        select {columns}
+        from v$rman_backup_job_details job
+        where job.status = 'COMPLETED'
+          and job.start_time > sysdate - :days
+          and exists (
+              select 1
+              from v$backup_set_details backup_set
+              where backup_set.session_key = job.session_key
+                and backup_set.incremental_level = :incremental_level
+          )
+        order by job.end_time desc
+        fetch first 1 row only
+    """
     alerts: list[dict[str, Any]] = []
     with _connect(connection) as database:
         with database.cursor() as cursor:
-            for input_type, days, label in (("DB FULL", 14, "missing_full"), ("DB INCR", 3, "missing_incremental")):
-                cursor.execute(f"select {columns} from v$rman_backup_job_details where status = 'COMPLETED' and input_type = :input_type and start_time > sysdate - :days order by end_time desc fetch first 1 row only", {"input_type": input_type, "days": days})
+            for incremental_level, days, label in ((0, 14, "missing_full"), (1, 3, "missing_incremental")):
+                cursor.execute(
+                    completed_at_level_sql,
+                    {"incremental_level": incremental_level, "days": days},
+                )
                 if cursor.fetchone() is None:
-                    alerts.append({"type": label, "input_type": input_type, "days": days})
+                    alerts.append(
+                        {
+                            "type": label,
+                            "incremental_level": incremental_level,
+                            "days": days,
+                        }
+                    )
             cursor.execute(f"select {columns} from v$rman_backup_job_details where status != 'COMPLETED' and start_time > sysdate - 14 order by end_time desc")
             for row in cursor:
                 alerts.append({"type": "failed_backup", "session_key": row[0], "input_type": row[1], "status": row[2], "start_time": row[3], "end_time": row[4], "backup_size": row[5]})
+    return alerts
+
+
+def _spain_refresh_mv_alerts() -> list[dict[str, Any]]:
+    """Return Spain refresh_mv.py errors from the last 48 hours only."""
+    status = inspect_saved_sync_process_status(
+        "es_db2_orclsp_sys", history_days=2
+    )
+    recent_runs = list(status.get("recent_runs", []))
+    alerts: list[dict[str, Any]] = []
+    for run in recent_runs:
+        if str(run.get("state") or "").upper() != "ERROR":
+            continue
+        error_text = " ".join(
+            str(run.get("output") or run.get("input") or "No error text recorded").split()
+        )
+        if len(error_text) > 300:
+            error_text = error_text[:297] + "..."
+        alerts.append({
+            "type": "refresh_mv_error",
+            "started_at": run.get("started_at"),
+            "ended_at": run.get("ended_at"),
+            "error": error_text,
+        })
+        if len(alerts) == 5:
+            return alerts
+    if not recent_runs:
+        return [{
+            "type": "refresh_mv_not_executed",
+            "status": "failure",
+            "hours": 48,
+        }]
     return alerts
 
 
@@ -1084,8 +1154,8 @@ def daily_rutione_check(
 ) -> dict[str, Any]:
     """Check job status and tablespace capacity for every saved Oracle target.
 
-    This is an on-demand, read-only summary of low tablespace capacity and RMAN
-    backup failures, missing incremental backups, or missing full backups.
+    This is an on-demand, read-only summary of low tablespace capacity, RMAN
+    backup health, and Spain refresh_mv.py errors or missing execution.
     """
     if not 0 <= minimum_free_percent <= 100:
         raise ValueError("minimum_free_percent must be between 0 and 100")
@@ -1095,6 +1165,11 @@ def daily_rutione_check(
         item: dict[str, Any] = {"connection_name": connection_name}
         try:
             backup_alerts = _rman_backup_alerts(connection_name)
+            refresh_mv_alerts = (
+                _spain_refresh_mv_alerts()
+                if connection_name == "es_db2_orclsp_sys"
+                else []
+            )
             space = inspect_saved_database_space(connection_name)
             space_issues = [
                 {
@@ -1109,10 +1184,11 @@ def daily_rutione_check(
                 if tablespace["free_percent"] < minimum_free_percent
             ]
             item.update({
-                "status": "ok" if not space_issues and not backup_alerts else "issues",
+                "status": "ok" if not space_issues and not backup_alerts and not refresh_mv_alerts else "issues",
                 "space": space,
                 "space_issues": space_issues,
                 "backup_alerts": backup_alerts,
+                "refresh_mv_alerts": refresh_mv_alerts,
             })
         except Exception as exc:
             item.update({
@@ -1146,6 +1222,41 @@ def daily_rutione_check(
                 "error": f"{type(exc).__name__}: {exc}",
             }
     return result
+
+
+@mcp.tool()
+def configure_daily_routine_schedule() -> dict[str, str]:
+    """Create or update the local daily 08:00 Task Scheduler routine check."""
+    runner = Path(__file__).with_name("daily_routine_runner.py")
+    command = f'"{sys.executable}" "{runner}"'
+    create = subprocess.run(
+        [
+            "schtasks.exe", "/create", "/tn", DAILY_ROUTINE_TASK_NAME,
+            "/tr", command, "/sc", "daily", "/st", "08:00", "/f",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if create.returncode:
+        raise RuntimeError(
+            (create.stderr or create.stdout).strip()
+            or "Task Scheduler rejected the daily routine task"
+        )
+    verify = subprocess.run(
+        ["schtasks.exe", "/query", "/tn", DAILY_ROUTINE_TASK_NAME, "/fo", "LIST"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if verify.returncode:
+        raise RuntimeError("Task Scheduler created the task but could not verify it")
+    return {
+        "task_name": DAILY_ROUTINE_TASK_NAME,
+        "schedule": "daily 08:00",
+        "runner": str(runner),
+        "verified": "true",
+    }
 
 
 @mcp.tool()

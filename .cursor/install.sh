@@ -1,22 +1,49 @@
 #!/usr/bin/env bash
-# Idempotent repository bootstrap for the Cloud Agent environment.
-# System packages (PostgreSQL 16 + pgvector, Ollama, uv, zstd) are baked into
-# the base snapshot; this script prepares repository-derived state after the
-# source tree is checked out.
+# Idempotent, self-contained bootstrap for the Cloud Agent environment.
+# Works from Cursor's default base image: installs system packages, the uv
+# package manager, Ollama, and all repository-derived state. Safe to re-run.
 set -euo pipefail
 
+export DEBIAN_FRONTEND=noninteractive
 export PATH="$HOME/.local/bin:$PATH"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
 RAG_DATABASE_URL="${RAG_DATABASE_URL:-postgresql://rag:rag@127.0.0.1:5432/rag}"
+PG_VERSION=16
+
+echo "==> Installing system packages (PostgreSQL ${PG_VERSION}, pgvector, build tools, zstd)"
+sudo apt-get update -qq
+sudo apt-get install -y -qq \
+  "postgresql-${PG_VERSION}" postgresql-contrib "postgresql-${PG_VERSION}-pgvector" \
+  build-essential curl ca-certificates git zstd
+
+echo "==> Ensuring uv is installed"
+if ! command -v uv >/dev/null 2>&1; then
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+fi
+export PATH="$HOME/.local/bin:$PATH"
+
+echo "==> Ensuring Ollama is installed"
+if ! command -v ollama >/dev/null 2>&1; then
+  curl -fsSL https://ollama.com/install.sh | sh
+fi
+
+echo "==> Persisting RAG_DATABASE_URL for interactive shells"
+if ! grep -q "RAG_DATABASE_URL" "$HOME/.bashrc" 2>/dev/null; then
+  {
+    echo ""
+    echo "# Local RAG database (PostgreSQL + pgvector)"
+    echo "export RAG_DATABASE_URL=\"${RAG_DATABASE_URL}\""
+  } >> "$HOME/.bashrc"
+fi
 
 echo "==> Installing Python dependencies with uv"
 uv sync --project ./myoracle_mcp
 uv sync --project ./local_rag
 
 echo "==> Ensuring PostgreSQL is running"
-sudo pg_ctlcluster 16 main start 2>/dev/null || true
+sudo pg_ctlcluster "${PG_VERSION}" main start 2>/dev/null || true
 for _ in $(seq 1 30); do
   if sudo -u postgres pg_isready -q; then break; fi
   sleep 1

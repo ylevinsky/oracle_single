@@ -11,7 +11,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-import psycopg
+import psycopg2
 
 
 ROOT = Path(__file__).resolve().parent
@@ -67,8 +67,9 @@ def vector_literal(vector: list[float]) -> str:
 
 
 def init_database(_: argparse.Namespace) -> None:
-    with psycopg.connect(database_url()) as connection:
-        connection.execute((ROOT / "schema.sql").read_text(encoding="utf-8"))
+    with psycopg2.connect(database_url()) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute((ROOT / "schema.sql").read_text(encoding="utf-8"))
     print("RAG schema initialized.")
 
 
@@ -82,46 +83,51 @@ def ingest(args: argparse.Namespace) -> None:
     files = source_files(Path(args.path).resolve())
     if not files:
         raise RuntimeError("No supported text files found.")
-    with psycopg.connect(database_url()) as connection:
-        for file in files:
-            content = file.read_text(encoding="utf-8", errors="replace")
-            digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
-            existing = connection.execute(
-                "SELECT id, content_sha256 FROM rag_documents WHERE source_path = %s", (str(file),)
-            ).fetchone()
-            if existing and existing[1] == digest:
-                print(f"Unchanged: {file}")
-                continue
-            if existing:
-                document_id = existing[0]
-                connection.execute("DELETE FROM rag_chunks WHERE document_id = %s", (document_id,))
-                connection.execute(
-                    "UPDATE rag_documents SET content_sha256 = %s, indexed_at = now() WHERE id = %s",
-                    (digest, document_id),
+    with psycopg2.connect(database_url()) as connection:
+        with connection.cursor() as cursor:
+            for file in files:
+                content = file.read_text(encoding="utf-8", errors="replace")
+                digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
+                cursor.execute(
+                    "SELECT id, content_sha256 FROM rag_documents WHERE source_path = %s", (str(file),)
                 )
-            else:
-                document_id = connection.execute(
-                    "INSERT INTO rag_documents (source_path, content_sha256) VALUES (%s, %s) RETURNING id",
-                    (str(file), digest),
-                ).fetchone()[0]
-            pieces = chunks(content)
-            for index, (piece, vector) in enumerate(zip(pieces, embed(pieces))):
-                connection.execute(
-                    "INSERT INTO rag_chunks (document_id, chunk_index, content, embedding) VALUES (%s, %s, %s, %s::vector)",
-                    (document_id, index, piece, vector_literal(vector)),
-                )
-            print(f"Indexed {len(pieces)} chunks: {file}")
+                existing = cursor.fetchone()
+                if existing and existing[1] == digest:
+                    print(f"Unchanged: {file}")
+                    continue
+                if existing:
+                    document_id = existing[0]
+                    cursor.execute("DELETE FROM rag_chunks WHERE document_id = %s", (document_id,))
+                    cursor.execute(
+                        "UPDATE rag_documents SET content_sha256 = %s, indexed_at = now() WHERE id = %s",
+                        (digest, document_id),
+                    )
+                else:
+                    cursor.execute(
+                        "INSERT INTO rag_documents (source_path, content_sha256) VALUES (%s, %s) RETURNING id",
+                        (str(file), digest),
+                    )
+                    document_id = cursor.fetchone()[0]
+                pieces = chunks(content)
+                for index, (piece, vector) in enumerate(zip(pieces, embed(pieces))):
+                    cursor.execute(
+                        "INSERT INTO rag_chunks (document_id, chunk_index, content, embedding) VALUES (%s, %s, %s, %s::vector)",
+                        (document_id, index, piece, vector_literal(vector)),
+                    )
+                print(f"Indexed {len(pieces)} chunks: {file}")
 
 
 def query(args: argparse.Namespace) -> None:
     question_vector = vector_literal(embed([args.question])[0])
-    with psycopg.connect(database_url()) as connection:
-        rows = connection.execute(
-            """SELECT d.source_path, c.chunk_index, c.content, 1 - (c.embedding <=> %s::vector) AS similarity
-                 FROM rag_chunks c JOIN rag_documents d ON d.id = c.document_id
-                 ORDER BY c.embedding <=> %s::vector LIMIT %s""",
-            (question_vector, question_vector, args.limit),
-        ).fetchall()
+    with psycopg2.connect(database_url()) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """SELECT d.source_path, c.chunk_index, c.content, 1 - (c.embedding <=> %s::vector) AS similarity
+                     FROM rag_chunks c JOIN rag_documents d ON d.id = c.document_id
+                     ORDER BY c.embedding <=> %s::vector LIMIT %s""",
+                (question_vector, question_vector, args.limit),
+            )
+            rows = cursor.fetchall()
     for source_path, chunk_index, content, similarity in rows:
         print(f"\n[{similarity:.3f}] {source_path} (chunk {chunk_index})\n{content}")
 

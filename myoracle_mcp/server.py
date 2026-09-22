@@ -24,7 +24,7 @@ import zipfile
 
 import oracledb
 import paramiko
-import psycopg
+import psycopg2
 from mcp.server.fastmcp import FastMCP
 
 
@@ -1262,13 +1262,15 @@ def configure_daily_routine_schedule() -> dict[str, str]:
 @mcp.tool()
 def inspect_local_rag_database() -> dict[str, Any]:
     """Check local RAG PostgreSQL, pgvector, and required tables."""
-    with psycopg.connect(_local_rag_database_url()) as database:
-        row = database.execute("""
-            select current_database(),
-                   exists (select 1 from pg_extension where extname = 'vector'),
-                   to_regclass('public.rag_documents'),
-                   to_regclass('public.rag_chunks')
-        """).fetchone()
+    with psycopg2.connect(_local_rag_database_url()) as database:
+        with database.cursor() as cursor:
+            cursor.execute("""
+                select current_database(),
+                       exists (select 1 from pg_extension where extname = 'vector'),
+                       to_regclass('public.rag_documents'),
+                       to_regclass('public.rag_chunks')
+            """)
+            row = cursor.fetchone()
     return {
         "database": row[0],
         "pgvector_installed": bool(row[1]),

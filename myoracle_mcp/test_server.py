@@ -253,6 +253,25 @@ class ServerTests(unittest.TestCase):
         self.assertLessEqual(len(messages), 3)
         self.assertTrue(all(len(message) <= 830 for message in messages))
 
+    def test_alert_log_alerts_count_distinct_codes(self):
+        scanned = {
+            "matches": [
+                {"text": "ORA-04036: PGA memory used by the instance exceeds PGA_AGGREGATE_LIMIT"},
+                {"text": {"value": "ORA-04036: PGA memory used by the instance exceeds PGA_AGGREGATE_LIMIT"}},
+                {"text": "Fatal NI connect error 12170."},
+                {"text": "Errors in file C:\\alert.log:"},
+            ]
+        }
+        with mock.patch.object(server, "inspect_saved_alert_log_errors", return_value=scanned):
+            alerts = server._alert_log_alerts("HUN")
+        self.assertEqual(
+            alerts,
+            [
+                {"type": "alert_log_error", "code": "ORA-04036", "count": 2},
+                {"type": "alert_log_error", "code": "TNS-12170", "count": 1},
+            ],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

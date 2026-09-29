@@ -180,12 +180,12 @@ def _read_windows_credential(target: str) -> str:
 def _daily_routine_notification_messages(result: dict[str, Any]) -> list[str]:
     """Format every daily-routine problem into at most three Slack messages."""
     lines = [
-        "Oracle capacity, RMAN backup, and Spain refresh alerts: " + ("OK" if result["ok_count"] == result["target_count"] else "ATTENTION"),
+        "Oracle capacity, alert-log, RMAN backup, and Spain refresh alerts: " + ("OK" if result["ok_count"] == result["target_count"] else "ATTENTION"),
         f"Targets: {result['target_count']} | Alerts: {result['issue_count']}",
         f"Minimum free space: {result['minimum_free_percent']:g}%",
     ]
     for target in result["targets"]:
-        if not target.get("space_issues") and not target.get("backup_alerts") and not target.get("refresh_mv_alerts"):
+        if not target.get("space_issues") and not target.get("backup_alerts") and not target.get("refresh_mv_alerts") and not target.get("alert_log_alerts"):
             continue
         lines.append(f"\n{target['connection_name']} — {target['status'].upper()}")
         for issue in target.get("space_issues", []):
@@ -200,6 +200,17 @@ def _daily_routine_notification_messages(result: dict[str, Any]) -> list[str]:
                     "Backup ALERT: no incremental level "
                     f"{alert['incremental_level']} completed in {alert['days']} days"
                 )
+        alert_log_alerts = target.get("alert_log_alerts") or []
+        if alert_log_alerts:
+            if alert_log_alerts[0].get("type") == "alert_log_check_failed":
+                lines.append(f"Alert log ALERT: check failed; {alert_log_alerts[0]['error']}")
+            else:
+                shown = alert_log_alerts[:8]
+                summary = "; ".join(f"{alert['code']} x{alert['count']}" for alert in shown)
+                extra = len(alert_log_alerts) - len(shown)
+                if extra:
+                    summary += f"; and {extra} more"
+                lines.append(f"Alert log: {summary}")
         for alert in target.get("refresh_mv_alerts", []):
             if alert["type"] == "refresh_mv_error":
                 lines.append(
@@ -687,7 +698,8 @@ def collect_saved_backup_scripts(
 
             def walk(path: str) -> None:
                 for entry in sftp.listdir_attr(path):
-                    remote = f"{path.rstrip('/\\')}/{entry.filename}"
+                    trimmed = path.rstrip("/\\")
+                    remote = f"{trimmed}/{entry.filename}"
                     if stat.S_ISDIR(entry.st_mode):
                         walk(remote)
                     elif Path(entry.filename).suffix.lower() in {".bat", ".cmd", ".ps1", ".sql", ".vbs", ".xml"}:
@@ -854,6 +866,35 @@ def _remote_error_lines(connection_name: str, paths_expression: str, tail: int) 
 
 
 @mcp.tool()
+def _alert_log_alerts(connection_name: str, last_records: int = 5000) -> list[dict[str, Any]]:
+    """Summarize ORA, TNS, and RMAN codes in the recent remote alert log."""
+    try:
+        result = inspect_saved_alert_log_errors(connection_name, last_records)
+    except Exception as exc:
+        return [{
+            "type": "alert_log_check_failed",
+            "error": f"{type(exc).__name__}: {exc}",
+        }]
+    counts: dict[str, int] = {}
+    for match in result.get("matches") or []:
+        text = match.get("text")
+        if isinstance(text, dict):
+            text = text.get("value") or ""
+        raw_text = str(text)
+        codes = [
+            found.upper()
+            for found in re.findall(r"\b(?:ORA|TNS|RMAN)-\d+\b", raw_text, flags=re.IGNORECASE)
+        ]
+        for found in re.findall(r"Fatal NI connect error\s+(\d+)", raw_text, flags=re.IGNORECASE):
+            codes.append(f"TNS-{found}")
+        for code in dict.fromkeys(codes):
+            counts[code] = counts.get(code, 0) + 1
+    return [
+        {"type": "alert_log_error", "code": code, "count": count}
+        for code, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    ]
+
+
 def inspect_saved_alert_log_errors(connection_name: str, last_records: int = 500) -> dict[str, Any]:
     """Check the saved target's remote Oracle alert log for errors."""
     if not 1 <= last_records <= 5000:
@@ -1154,8 +1195,9 @@ def daily_rutione_check(
 ) -> dict[str, Any]:
     """Check job status and tablespace capacity for every saved Oracle target.
 
-    This is an on-demand, read-only summary of low tablespace capacity, RMAN
-    backup health, and Spain refresh_mv.py errors or missing execution.
+    This is an on-demand, read-only summary of low tablespace capacity, alert-log
+    ORA/TNS/RMAN codes from the last 5000 lines, RMAN backup health, and Spain
+    refresh_mv.py errors or missing execution.
     """
     if not 0 <= minimum_free_percent <= 100:
         raise ValueError("minimum_free_percent must be between 0 and 100")
@@ -1165,6 +1207,7 @@ def daily_rutione_check(
         item: dict[str, Any] = {"connection_name": connection_name}
         try:
             backup_alerts = _rman_backup_alerts(connection_name)
+            alert_log_alerts = _alert_log_alerts(connection_name)
             refresh_mv_alerts = (
                 _spain_refresh_mv_alerts()
                 if connection_name == "es_db2_orclsp_sys"
@@ -1184,10 +1227,11 @@ def daily_rutione_check(
                 if tablespace["free_percent"] < minimum_free_percent
             ]
             item.update({
-                "status": "ok" if not space_issues and not backup_alerts and not refresh_mv_alerts else "issues",
+                "status": "ok" if not space_issues and not backup_alerts and not refresh_mv_alerts and not alert_log_alerts else "issues",
                 "space": space,
                 "space_issues": space_issues,
                 "backup_alerts": backup_alerts,
+                "alert_log_alerts": alert_log_alerts,
                 "refresh_mv_alerts": refresh_mv_alerts,
             })
         except Exception as exc:

@@ -25,8 +25,10 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
   space, alert-log errors, backup-log errors, and copies backup job scripts.
 - `inspect_all_saved_database_space`: checks every saved Oracle target and
   returns per-target capacity results or sanitized connection errors.
-- `daily_rutione_check`: on demand, checks tablespace capacity and RMAN backup
+- `daily_rutione_check`: on demand, checks tablespace capacity, alert-log
+  errors from the last 5000 lines, and RMAN backup
   health. It reports only tablespaces below the requested free-space threshold,
+  ORA/TNS/RMAN codes found in that alert-log tail,
   failed RMAN jobs in the last 14 days, a missing level-1 incremental in three
   days, or a missing level-0 full backup in 14 days. The backup-level checks join
   RMAN job details to `V$BACKUP_SET_DETAILS` by session key. It sends a detailed

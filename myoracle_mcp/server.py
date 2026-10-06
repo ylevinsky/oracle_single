@@ -25,7 +25,21 @@ import zipfile
 import oracledb
 import paramiko
 import psycopg2
+import socket
 from mcp.server.fastmcp import FastMCP
+
+import philippines_refresh
+import public_database_link
+import clone_time
+import saved_query
+import schema_movement
+import ephemeral_oracle
+import table_timestamps
+import readonly_user
+import object_retire
+import connection_migration
+import local_postgres
+import transfer_queue
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
@@ -84,6 +98,46 @@ def _read_connection(connection_name: str) -> dict[str, Any]:
     connection = dict(connection)
     connection["connection_name"] = connection_name
     return connection
+
+
+def _read_postgres_connection(connection_name: str) -> dict[str, Any]:
+    """Load one saved PostgreSQL connection, including its password."""
+    try:
+        document = json.loads(CONNECTIONS_FILE.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise ValueError(f"Connection file not found: {CONNECTIONS_FILE}") from exc
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Invalid JSON in {CONNECTIONS_FILE}: {exc}") from exc
+
+    connections = document.get("connections")
+    if not isinstance(connections, dict):
+        raise ValueError("connections.json must contain a 'connections' object")
+
+    connection = connections.get(connection_name)
+    if not isinstance(connection, dict):
+        available = ", ".join(
+            sorted(
+                name
+                for name, details in connections.items()
+                if isinstance(details, dict)
+                and str(details.get("engine", "")).lower() == "postgresql"
+            )
+        ) or "(none)"
+        raise ValueError(
+            f"Unknown PostgreSQL connection '{connection_name}'. Available: {available}"
+        )
+
+    required = ("engine", "host", "port", "database", "username", "password")
+    missing = [key for key in required if connection.get(key) in (None, "")]
+    if missing:
+        raise ValueError(
+            f"Connection '{connection_name}' is incomplete; missing: {', '.join(missing)}"
+        )
+    if str(connection["engine"]).lower() != "postgresql":
+        raise ValueError(f"Connection '{connection_name}' is not a PostgreSQL connection")
+    loaded = dict(connection)
+    loaded["connection_name"] = connection_name
+    return loaded
 
 
 def _local_rag_database_url() -> str:
@@ -181,10 +235,17 @@ def _daily_routine_notification_messages(result: dict[str, Any]) -> list[str]:
     """Format every daily-routine problem into at most three Slack messages."""
     lines = [
         "Oracle capacity, alert-log, RMAN backup, and Spain refresh alerts: " + ("OK" if result["ok_count"] == result["target_count"] else "ATTENTION"),
-        f"Targets: {result['target_count']} | Alerts: {result['issue_count']}",
+        f"Targets: {result['target_count']} | Alerts: {result['issue_count']} | Unreachable: {result.get('failed_count', 0)}",
         f"Minimum free space: {result['minimum_free_percent']:g}%",
     ]
     for target in result["targets"]:
+        if target.get("status") == "failed":
+            error = " ".join(str(target.get("error") or "connection failed").split())
+            if len(error) > 180:
+                error = error[:177] + "..."
+            lines.append(f"\n{target['connection_name']} — NOT CONNECTED")
+            lines.append(f"Connection ALERT: {error}")
+            continue
         if not target.get("space_issues") and not target.get("backup_alerts") and not target.get("refresh_mv_alerts") and not target.get("alert_log_alerts"):
             continue
         lines.append(f"\n{target['connection_name']} — {target['status'].upper()}")
@@ -279,6 +340,61 @@ def _send_daily_routine_slack_message(channel_id: str, result: dict[str, Any]) -
         "message_count": len(deliveries),
         "message_timestamps": deliveries,
     }
+
+
+def _write_daily_routine_report(result: dict[str, Any]) -> dict[str, Any]:
+    """Write the complete daily routine result as a local Markdown report."""
+    lines = [
+        "# Daily Routine Report",
+        "",
+        f"Generated: {datetime.now().astimezone().isoformat(timespec='seconds')}",
+        f"Minimum free space threshold: {result['minimum_free_percent']:.2f}%",
+        "",
+        "## Summary",
+        "",
+        f"- Targets checked: {result['target_count']}",
+        f"- OK: {result['ok_count']}",
+        f"- Issues: {result['issue_count']}",
+        f"- Failed: {result['failed_count']}",
+        "",
+        "## Target details",
+        "",
+    ]
+    for target in result["targets"]:
+        name = target["connection_name"]
+        lines.append(f"### {name} — {target['status'].upper()}")
+        if target["status"] == "failed":
+            lines.extend(["", f"- Connection error: `{target['error']}`", ""])
+            continue
+
+        space_issues = target.get("space_issues", [])
+        if space_issues:
+            lines.extend(["", "**Tablespace capacity alerts**", ""])
+            for issue in space_issues:
+                lines.append(
+                    f"- `{issue['tablespace_name']}`: {issue['free_percent']:.2f}% free "
+                    f"({issue['issue']})"
+                )
+        for label, key in (
+            ("Backup alerts", "backup_alerts"),
+            ("Alert-log alerts", "alert_log_alerts"),
+            ("Refresh/job alerts", "refresh_mv_alerts"),
+        ):
+            alerts = target.get(key, [])
+            if alerts:
+                lines.extend(["", f"**{label}**", "", "```json"])
+                lines.append(json.dumps(alerts, indent=2, default=str))
+                lines.extend(["```"])
+        if not space_issues and not any(
+            target.get(key) for key in ("backup_alerts", "alert_log_alerts", "refresh_mv_alerts")
+        ):
+            lines.extend(["", "No alerts.", ""])
+        else:
+            lines.append("")
+
+    report_path = REPOSITORY_ROOT / "report.md"
+    report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return {"path": str(report_path), "file": report_path.name}
 
 
 def _open_slack_direct_message(user_id: str) -> str:
@@ -389,6 +505,19 @@ def _spain_refresh_mv_alerts() -> list[dict[str, Any]]:
     )
     recent_runs = list(status.get("recent_runs", []))
     alerts: list[dict[str, Any]] = []
+    for worker in status.get("stuck_workers", []):
+        alerts.append({
+            "type": "refresh_mv_stuck",
+            "site": worker.get("site"),
+            "sid": worker.get("sid"),
+            "serial": worker.get("serial"),
+            "event": worker.get("event"),
+            "wait_class": worker.get("wait_class"),
+            "seconds_in_wait": worker.get("seconds_in_wait"),
+            "sql_id": worker.get("sql_id"),
+        })
+        if len(alerts) == 5:
+            return alerts
     for run in recent_runs:
         if str(run.get("state") or "").upper() != "ERROR":
             continue
@@ -405,7 +534,7 @@ def _spain_refresh_mv_alerts() -> list[dict[str, Any]]:
         })
         if len(alerts) == 5:
             return alerts
-    if not recent_runs:
+    if not recent_runs and not alerts:
         return [{
             "type": "refresh_mv_not_executed",
             "status": "failure",
@@ -507,12 +636,17 @@ def _connect(connection: dict[str, Any]) -> oracledb.Connection:
     if sslmode not in {"disable", "require"}:
         raise ValueError("Oracle sslmode must be 'disable' or 'require'")
 
-    params = oracledb.ConnectParams(
-        host=str(connection["host"]),
-        port=int(connection["port"]),
-        sid=str(connection.get("sid") or connection["database"]),
-        protocol="tcps" if sslmode == "require" else "tcp",
-    )
+    connect_target = {
+        "host": str(connection["host"]),
+        "port": int(connection["port"]),
+        "protocol": "tcps" if sslmode == "require" else "tcp",
+    }
+    service_name = str(connection.get("service_name") or "").strip()
+    if service_name:
+        connect_target["service_name"] = service_name
+    else:
+        connect_target["sid"] = str(connection.get("sid") or connection["database"])
+    params = oracledb.ConnectParams(**connect_target)
     mode = None
     privilege_mode = str(connection.get("privilege_mode", "")).upper()
     if privilege_mode == "SYSDBA":
@@ -865,7 +999,6 @@ def _remote_error_lines(connection_name: str, paths_expression: str, tail: int) 
         client.close()
 
 
-@mcp.tool()
 def _alert_log_alerts(connection_name: str, last_records: int = 5000) -> list[dict[str, Any]]:
     """Summarize ORA, TNS, and RMAN codes in the recent remote alert log."""
     try:
@@ -895,6 +1028,7 @@ def _alert_log_alerts(connection_name: str, last_records: int = 5000) -> list[di
     ]
 
 
+@mcp.tool()
 def inspect_saved_alert_log_errors(connection_name: str, last_records: int = 500) -> dict[str, Any]:
     """Check the saved target's remote Oracle alert log for errors."""
     if not 1 <= last_records <= 5000:
@@ -907,6 +1041,41 @@ def inspect_saved_alert_log_errors(connection_name: str, last_records: int = 500
     return {"connection_name": connection_name, "log_path": str(alert_log),
             "records_checked": last_records,
             "status": "errors_found" if result["match_count"] else "no_errors_found", **result}
+
+
+@mcp.tool()
+def summarize_saved_alert_log_codes(connection_name: str, last_records: int = 5000) -> dict[str, Any]:
+    """Count ORA, TNS, and RMAN codes in the recent remote alert log."""
+    if not 1 <= last_records <= 5000:
+        raise ValueError("last_records must be between 1 and 5000")
+    return {
+        "connection_name": connection_name,
+        "last_records": last_records,
+        "alerts": _alert_log_alerts(connection_name, last_records),
+    }
+
+
+@mcp.tool()
+def check_saved_oracle_connectivity(connection_name: str) -> dict[str, Any]:
+    """Open and close one saved Oracle connection."""
+    connection = _read_connection(connection_name)
+    with _connect(connection):
+        pass
+    return {
+        "connection_name": connection_name,
+        "host": str(connection["host"]),
+        "port": int(connection["port"]),
+        "sid": str(connection.get("sid") or connection["database"]),
+        "status": "connected",
+    }
+
+
+@mcp.tool()
+def get_local_current_date() -> dict[str, str]:
+    """Return today's local date in ISO 8601 format."""
+    from local_clock import get_current_date
+
+    return {"date": get_current_date().isoformat()}
 
 
 @mcp.tool()
@@ -939,6 +1108,40 @@ def connections_list() -> list[str]:
         if isinstance(details, dict)
         and str(details.get("engine", "")).lower() == "oracle"
     )
+
+
+@mcp.tool()
+def migrate_mobaxterm_to_mremoteng(
+    source_path: str,
+    destination_path: str,
+    overwrite_existing: bool = False,
+    remove_names: list[str] | None = None,
+) -> dict[str, Any]:
+    """Import MobaXterm SSH/RDP bookmarks into mRemoteNG and match Windows credentials."""
+    if not source_path.strip() or not destination_path.strip():
+        raise ValueError("source_path and destination_path are required")
+    return connection_migration.migrate_mobaxterm_to_mremoteng(
+        source_path=source_path,
+        destination_path=destination_path,
+        overwrite_existing=overwrite_existing,
+        remove_names=remove_names,
+    )
+
+
+@mcp.tool()
+def set_mremoteng_file_password(destination_path: str, password: str) -> dict[str, Any]:
+    """Set the mRemoteNG connection-file password and re-encrypt stored secrets."""
+    if not destination_path.strip() or not password.strip():
+        raise ValueError("destination_path and password are required")
+    return connection_migration.set_mremoteng_file_password(destination_path, password)
+
+
+@mcp.tool()
+def restore_mobaxterm_passwords(destination_path: str, file_password: str) -> dict[str, Any]:
+    """Copy saved MobaXterm account passwords into an mRemoteNG connection file."""
+    if not destination_path.strip() or not file_password.strip():
+        raise ValueError("destination_path and file_password are required")
+    return connection_migration.restore_mobaxterm_passwords(destination_path, file_password)
 
 
 @mcp.tool()
@@ -980,6 +1183,161 @@ def list_schemas(connection_name: str) -> dict[str, Any]:
         "database": connection["database"],
         "schema_count": len(schemas),
         "schemas": schemas,
+    }
+
+
+def _connection_aliases(connection: dict[str, Any]) -> list[str]:
+    """Return host, address, service, and SID strings used to recognize a database link."""
+    aliases = [
+        str(connection.get("host") or ""),
+        str(connection.get("database") or ""),
+        str(connection.get("sid") or ""),
+    ]
+    host = aliases[0]
+    if host:
+        try:
+            aliases.append(socket.gethostbyname(host))
+        except OSError:
+            pass
+    return [alias for alias in aliases if alias]
+
+
+@mcp.tool()
+def inspect_saved_database_container(connection_name: str) -> dict[str, Any]:
+    """Show the connected container and how many user tables it contains.
+
+    When the saved SID opens the root of a multitenant database, the session
+    moves into the single open pluggable database before counting. The check
+    is read-only aside from that session container switch and never returns
+    credentials.
+    """
+    connection = _read_connection(connection_name)
+    with _connect(connection) as database:
+        with database.cursor() as cursor:
+            container = schema_movement.enter_open_pluggable_database(cursor)
+            cursor.execute(schema_movement.APPLICATION_TABLE_LIST_SQL)
+            tables = [(str(owner), str(name)) for owner, name in cursor]
+    schemas = sorted({owner for owner, _ in tables})
+    return {
+        "connection_name": connection_name,
+        "host": str(connection["host"]),
+        "sid": str(connection.get("sid") or connection["database"]),
+        "service_name": str(connection.get("service_name") or ""),
+        "container": container,
+        "schema_count": len(schemas),
+        "table_count": len(tables),
+        "schemas": schemas,
+    }
+
+
+@mcp.tool()
+def compare_saved_application_objects(
+    source_connection: str, target_connection: str
+) -> dict[str, Any]:
+    """Compare user tables and application PL/SQL between two saved databases.
+
+    Row counts are physical ``COUNT(*)`` results. When a saved SID opens a
+    multitenant root, the session moves into the single open pluggable
+    database first. Structure is the ordered column name, type, length,
+    precision, scale, and nullability. Procedures, functions, and packages
+    match when their source line count and checksum match. The check does
+    not modify stored data and never returns credentials or source text.
+    """
+    source = _read_connection(source_connection)
+    target = _read_connection(target_connection)
+
+    def catalog(connection: dict[str, Any]) -> dict[str, Any]:
+        with _connect(connection) as database:
+            with database.cursor() as cursor:
+                schema_movement.enter_open_pluggable_database(cursor)
+                return schema_movement.collect_application_catalog(cursor, physical_counts=True)
+
+    source_catalog = catalog(source)
+    target_catalog = catalog(target)
+    compared = schema_movement.compare_application_catalogs(source_catalog, target_catalog)
+    return {
+        "source_connection": source_connection,
+        "target_connection": target_connection,
+        "source_host": str(source["host"]),
+        "target_host": str(target["host"]),
+        "source_sid": str(source.get("sid") or source["database"]),
+        "target_sid": str(target.get("sid") or target["database"]),
+        "source_service_name": str(source.get("service_name") or ""),
+        "target_service_name": str(target.get("service_name") or ""),
+        "row_count_basis": "COUNT(*)",
+        "source_query_errors": source_catalog["query_errors"],
+        "target_query_errors": target_catalog["query_errors"],
+        **compared,
+    }
+
+
+@mcp.tool()
+def list_saved_user_tables(connection_name: str) -> dict[str, Any]:
+    """List user-created schemas and their tables on a saved Oracle connection.
+
+    Oracle-maintained accounts are excluded. A schema with no tables is still
+    returned. The check is read-only and never returns credentials.
+    """
+    connection = _read_connection(connection_name)
+    with _connect(connection) as database:
+        with database.cursor() as cursor:
+            listed = schema_movement.list_user_tables(cursor)
+    return {
+        "connection_name": connection_name,
+        "host": str(connection["host"]),
+        "sid": str(connection.get("sid") or connection["database"]),
+        **listed,
+    }
+
+
+@mcp.tool()
+def compare_saved_schema_movement(
+    source_connection: str, target_connection: str
+) -> dict[str, Any]:
+    """Compare application schemas and read-only evidence of data movement.
+
+    The source is the database being copied from and the target is the
+    database that would receive the data. Oracle-maintained schemas are
+    excluded. Table row counts come from optimizer statistics, not a live
+    count. The check does not modify either database and never returns
+    credentials.
+    """
+    source = _read_connection(source_connection)
+    target = _read_connection(target_connection)
+
+    def inventory(connection: dict[str, Any]) -> dict[str, Any]:
+        with _connect(connection) as database:
+            with database.cursor() as cursor:
+                return schema_movement.collect_inventory(cursor)
+
+    source_inventory = inventory(source)
+    target_inventory = inventory(target)
+    comparison = schema_movement.compare_inventories(
+        source_inventory,
+        target_inventory,
+        _connection_aliases(source),
+        _connection_aliases(target),
+    )
+    return {
+        "source_connection": source_connection,
+        "target_connection": target_connection,
+        "source_host": str(source["host"]),
+        "target_host": str(target["host"]),
+        "source_sid": str(source.get("sid") or source["database"]),
+        "target_sid": str(target.get("sid") or target["database"]),
+        "filter": "DBA_USERS.ORACLE_MAINTAINED = 'N'",
+        "row_count_basis": "DBA_TABLES.NUM_ROWS optimizer statistics",
+        "source_query_errors": source_inventory["query_errors"],
+        "target_query_errors": target_inventory["query_errors"],
+        "source_schemas": source_inventory["schemas"],
+        "target_schemas": target_inventory["schemas"],
+        "source_top_tables": source_inventory["top_tables"],
+        "target_top_tables": target_inventory["top_tables"],
+        "source_database_links": source_inventory["database_links"],
+        "target_database_links": target_inventory["database_links"],
+        "source_materialized_views": source_inventory["materialized_views"],
+        "target_materialized_views": target_inventory["materialized_views"],
+        **comparison,
     }
 
 
@@ -1196,8 +1554,8 @@ def daily_rutione_check(
     """Check job status and tablespace capacity for every saved Oracle target.
 
     This is an on-demand, read-only summary of low tablespace capacity, alert-log
-    ORA/TNS/RMAN codes from the last 5000 lines, RMAN backup health, and Spain
-    refresh_mv.py errors or missing execution.
+    ORA/TNS/RMAN codes from the last 5000 lines, RMAN backup health, Spain
+    refresh_mv.py errors or missing execution, and saved targets that cannot be reached.
     """
     if not 0 <= minimum_free_percent <= 100:
         raise ValueError("minimum_free_percent must be between 0 and 100")
@@ -1250,6 +1608,13 @@ def daily_rutione_check(
         "failed_count": sum(item["status"] == "failed" for item in targets),
         "targets": targets,
     }
+    try:
+        result["markdown_report"] = _write_daily_routine_report(result)
+    except Exception as exc:
+        result["markdown_report"] = {
+            "written": False,
+            "error": f"{type(exc).__name__}: {exc}",
+        }
     notification_channel_id = slack_channel_id
     if not notification_channel_id:
         default_user_id = _default_daily_routine_slack_user_id()
@@ -1301,6 +1666,15 @@ def configure_daily_routine_schedule() -> dict[str, str]:
         "runner": str(runner),
         "verified": "true",
     }
+
+
+@mcp.tool()
+def list_local_postgres_databases(connection_name: str = "local_postgres_admin") -> dict[str, Any]:
+    """List databases on one saved local PostgreSQL connection."""
+    name = connection_name.strip()
+    if not name:
+        raise ValueError("connection_name is required")
+    return local_postgres.list_databases(_read_postgres_connection(name))
 
 
 @mcp.tool()
@@ -2167,7 +2541,7 @@ def inspect_saved_materialized_view_refresh_waits(connection_name: str) -> dict[
         connection.close()
 
 @mcp.tool()
-def inspect_saved_sync_process_status(connection_name: str, history_days: int = 7) -> dict[str, object]:
+def inspect_saved_sync_process_status(connection_name: str, history_days: int = 7, stuck_threshold_seconds: int = 7200) -> dict[str, object]:
     """Return the current status of the TRANSFER_USER materialized-view sync process.
 
     The standalone ``refresh_mv.py`` process identifies active workers with
@@ -2177,10 +2551,20 @@ def inspect_saved_sync_process_status(connection_name: str, history_days: int = 
     sessions, matching long operations, and current refresh metadata for the
     ``TRANSFER_USER`` materialized views. Audit history is limited by date,
     defaulting to the trailing seven days. It never returns credentials or data.
+
+    Workers waiting longer than ``stuck_threshold_seconds`` (default two hours)
+    are flagged ``stuck`` and reported per site in ``sites`` alongside each
+    site's last success and last error timestamps. The top-level ``status`` is
+    ``stuck`` when any worker is stuck, otherwise ``running`` when workers are
+    active, ``failed``/``completed`` from the latest audit record, or
+    ``unknown`` when nothing usable was found.
     """
     safe_history_days = int(history_days)
     if not 1 <= safe_history_days <= 90:
         raise ValueError("history_days must be between 1 and 90.")
+    safe_stuck_threshold = int(stuck_threshold_seconds)
+    if not 60 <= safe_stuck_threshold <= 604800:
+        raise ValueError("stuck_threshold_seconds must be between 60 and 604800.")
     connection = _connect_saved_oracle(connection_name)
     try:
         with connection.cursor() as cursor:
@@ -2201,6 +2585,7 @@ def inspect_saved_sync_process_status(connection_name: str, history_days: int = 
                     "event": str(event) if event else None,
                     "wait_class": str(wait_class) if wait_class else None,
                     "seconds_in_wait": int(seconds_in_wait or 0),
+                    "stuck": int(seconds_in_wait or 0) > safe_stuck_threshold,
                 }
                 for sid, serial, status, username, action, sql_id, event, wait_class, seconds_in_wait in cursor
             ]
@@ -2258,7 +2643,34 @@ def inspect_saved_sync_process_status(connection_name: str, history_days: int = 
                 for name, last_refresh_date, staleness, compile_state in cursor
             ]
         latest_state = recent_runs[0]["state"].upper() if recent_runs and recent_runs[0]["state"] else None
-        if active_workers:
+        stuck_workers = [worker for worker in active_workers if worker.get("stuck")]
+        sites: dict[str, dict[str, object]] = {}
+        for worker in active_workers:
+            site_name = worker.get("site") or "unknown"
+            entry = sites.setdefault(site_name, {"site": site_name, "worker": None, "last_success_at": None, "last_error_at": None})
+            entry["worker"] = worker
+        for run in recent_runs:
+            input_text = run.get("input") or ""
+            site_name = str(input_text).split(":", 1)[0].strip() or "unknown"
+            entry = sites.setdefault(site_name, {"site": site_name, "worker": None, "last_success_at": None, "last_error_at": None})
+            if str(run.get("state") or "").upper() == "END" and entry["last_success_at"] is None:
+                entry["last_success_at"] = run.get("ended_at")
+            elif str(run.get("state") or "").upper() == "ERROR" and entry["last_error_at"] is None:
+                entry["last_error_at"] = run.get("ended_at")
+        for site_name, entry in sites.items():
+            if entry["worker"] is not None:
+                entry["state"] = "stuck" if entry["worker"].get("stuck") else "running"
+            elif entry["last_error_at"] is not None and (
+                entry["last_success_at"] is None or str(entry["last_error_at"]) > str(entry["last_success_at"])
+            ):
+                entry["state"] = "failed"
+            elif entry["last_success_at"] is not None:
+                entry["state"] = "completed"
+            else:
+                entry["state"] = "unknown"
+        if stuck_workers:
+            status = "stuck"
+        elif active_workers:
             status = "running"
         elif latest_state == "ERROR":
             status = "failed"
@@ -2269,7 +2681,10 @@ def inspect_saved_sync_process_status(connection_name: str, history_days: int = 
         return {
             "connection": connection_name,
             "history_days": safe_history_days,
+            "stuck_threshold_seconds": safe_stuck_threshold,
             "status": status,
+            "stuck_workers": stuck_workers,
+            "sites": sites,
             "active_workers": active_workers,
             "active_long_operations": active_long_operations,
             "recent_runs": recent_runs,
@@ -3373,6 +3788,21 @@ def export_saved_oracle_object(
         connection.close()
 
 @mcp.tool()
+def drop_saved_materialized_view(connection_name: str, owner: str, name: str, confirmed: bool) -> dict[str, object]:
+    """Drop one unused materialized view from a saved Oracle target.
+
+    This is a persistent DDL operation. The caller must obtain explicit
+    approval and pass ``confirmed=true``. The view must exist in
+    ``DBA_MVIEWS`` and have no dependents in ``DBA_DEPENDENCIES``. Archive
+    the ``DBMS_METADATA`` DDL in git before invoking it. The container table
+    is dropped with the view. It never returns credentials.
+    """
+    return object_retire.drop_saved_materialized_view(
+        connection_name, owner, name, confirmed, _connect_saved_oracle
+    )
+
+
+@mcp.tool()
 def inspect_saved_sys_session_sql(connection_name: str) -> dict[str, object]:
     """List ``SYS`` user sessions and their current SQL text.
 
@@ -4437,6 +4867,28 @@ def create_saved_oracle_index(
         connection.close()
 
 @mcp.tool()
+def create_saved_transfer_products_queue(connection_name: str, confirmed: bool = False) -> dict[str, object]:
+    """Create ATE_RESULTS.TRANSFER_PRODUCTS_QUEUE and enqueue new inserts.
+
+    The existing TRANSFER_PRODUCTS_LOG table stays an insert-only history.
+    A new queue table receives the same inserted columns, and the source
+    table's insert trigger writes both. When the queue is created by this
+    call, current log rows are copied into it once so pending work is kept.
+    This is persistent DDL and requires confirmed=true.
+    """
+    if confirmed is not True:
+        raise ValueError("Set confirmed=true only after explicit approval to create the transfer queue.")
+    connection = _connect_saved_oracle(connection_name)
+    try:
+        with connection.cursor() as cursor:
+            result = transfer_queue.ensure_transfer_products_queue(cursor)
+        result["connection"] = connection_name
+        return result
+    finally:
+        connection.close()
+
+
+@mcp.tool()
 def create_saved_table_insert_log(
     connection_name: str,
     owner: str,
@@ -4620,6 +5072,502 @@ def run_saved_targets_routine(
     return {"target_count": len(results),
             "accessible_count": sum(item["status"] == "accessible" for item in results),
             "targets": results}
+
+
+@mcp.tool()
+def summarize_philippines_transfer(started_at: str) -> dict[str, object]:
+    """Count Philippines rows copied into Spain since a timestamp."""
+    return philippines_refresh.summarize_philippines_transfer(_connect_saved_oracle, started_at)
+
+
+@mcp.tool()
+def unlock_philippines_ate_results(confirmed: bool) -> dict[str, object]:
+    """Unlock Philippines ATE_RESULTS. Requires confirmed=true."""
+    return philippines_refresh.unlock_ate_results(confirmed, _connect_saved_oracle)
+
+
+@mcp.tool()
+def describe_philippines_refresh_access() -> dict[str, object]:
+    """Check whether Spain can read the Philippines objects used by the refresh."""
+    return philippines_refresh.describe_refresh_access(_connect_saved_oracle)
+
+
+@mcp.tool()
+def create_philippines_refresh_objects(connection_name: str, confirmed: bool) -> dict[str, object]:
+    """Create the Philippines refresh tables, index, and materialized views.
+
+    The objects are TRANSFER_USER.PH_UUT_ATTRUBUTES, PH_UUT_ATTRIBUTES_UPDATE,
+    PH_NKEYS_ALLOCATED, and IDX_PH_UUT_ATTRUBUTES_1SN on the Repair Center
+    connection. Existing objects are left unchanged. This is persistent DDL,
+    requires confirmed=true, and does not refresh data or copy rows.
+    """
+    return philippines_refresh.create_objects(connection_name, confirmed, _connect_saved_oracle)
+
+
+@mcp.tool()
+def check_saved_database_link(connection_name: str, db_link: str) -> dict[str, object]:
+    """Read one row through a database link on a saved Oracle connection.
+
+    Runs ``select 1 from dual@<link>`` and reports whether the link responded.
+    The link name must be a simple Oracle identifier. The result lists matching
+    link definitions without credentials or remote data.
+    """
+    if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_$#]{0,127}", db_link):
+        raise ValueError("db_link must be a simple Oracle identifier.")
+    safe_link = db_link.upper()
+    connection = _connect_saved_oracle(connection_name)
+    started = time.monotonic()
+    try:
+        connection.call_timeout = 90_000
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "select owner, db_link, username from dba_db_links "
+                "where db_link = :db_link or db_link like :prefix "
+                "order by owner, db_link",
+                {"db_link": safe_link, "prefix": f"{safe_link}.%"},
+            )
+            visible_links = [
+                {
+                    "owner": str(owner),
+                    "db_link": str(name),
+                    "username": str(username) if username else None,
+                }
+                for owner, name, username in cursor
+            ]
+            probes = [_probe_database_link(cursor, safe_link, None)]
+            if not probes[0]["ok"] and "ORA-02019" in str(probes[0]["error"]):
+                owners = [
+                    link["owner"]
+                    for link in visible_links
+                    if link["owner"] not in {"PUBLIC", "SYS"}
+                ]
+                for owner in dict.fromkeys(owners):
+                    probes.append(_probe_database_link(cursor, safe_link, owner))
+            ok = any(probe["ok"] for probe in probes)
+            error = None if ok else probes[-1]["error"]
+        return {
+            "connection": connection_name,
+            "db_link": safe_link,
+            "ok": ok,
+            "elapsed_ms": int((time.monotonic() - started) * 1000),
+            "visible_links": visible_links,
+            "probes": probes,
+            "error": error,
+        }
+    finally:
+        connection.close()
+
+
+@mcp.tool()
+def create_public_database_link_from_existing(
+    connection_name: str,
+    source_owner: str,
+    source_link: str,
+    public_link: str,
+    confirmed: bool,
+) -> dict[str, object]:
+    """Create a public database link by copying an existing link on that database.
+
+    The remote user, connect descriptor, and password verifier are copied inside
+    the database. The result does not include the verifier or connect descriptor.
+    This is persistent DDL and requires confirmed=true.
+    """
+    return public_database_link.create_public_link_from_existing(
+        connection_name,
+        source_owner,
+        source_link,
+        public_link,
+        confirmed,
+        _connect_saved_oracle,
+    )
+
+
+@mcp.tool()
+def inspect_saved_database_link_descriptors(connection_name: str, db_link: str) -> dict[str, object]:
+    """Return link owners and connect-descriptor lengths without the descriptor text."""
+    if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_$#]{0,127}", db_link):
+        raise ValueError("db_link must be a simple Oracle identifier.")
+    safe_link = db_link.upper()
+    connection = _connect_saved_oracle(connection_name)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "select u.name, l.name, l.userid, nvl(length(l.host), 0), l.flag, "
+                "case when l.host like '(%' then 'descriptor' else 'alias' end, "
+                "case when l.passwordx is null then 0 else 1 end "
+                "from sys.link$ l join sys.user$ u on u.user# = l.owner# "
+                "where l.name = :db_link or l.name like :prefix order by u.name",
+                {"db_link": safe_link, "prefix": f"{safe_link}.%"},
+            )
+            links = [
+                {
+                    "owner": str(owner),
+                    "db_link": str(name),
+                    "username": str(username) if username else None,
+                    "host_length": int(host_length),
+                    "flag": int(flag) if flag is not None else None,
+                    "host_kind": str(host_kind),
+                    "password_present": bool(password_present),
+                }
+                for owner, name, username, host_length, flag, host_kind, password_present in cursor
+            ]
+            cursor.execute(
+                "select l.name, l.userid, l.flag, nvl(length(l.host), 0) "
+                "from sys.link$ l join sys.user$ u on u.user# = l.owner# "
+                "where u.name = 'PUBLIC' and l.name not like :prefix and rownum <= 15",
+                {"prefix": f"{safe_link}.%"},
+            )
+            other_public = [
+                {
+                    "db_link": str(name),
+                    "username": str(username) if username else None,
+                    "flag": int(flag) if flag is not None else None,
+                    "host_length": int(host_length),
+                }
+                for name, username, flag, host_length in cursor
+            ]
+            cursor.execute(
+                "select case when a.host = b.host then 1 else 0 end "
+                "from sys.link$ a "
+                "join sys.user$ ua on ua.user# = a.owner# "
+                "join sys.link$ b on b.name = a.name "
+                "join sys.user$ ub on ub.user# = b.owner# "
+                "where ua.name = 'PUBLIC' and ub.name = 'TRANSFER_USER' "
+                "and a.name like :prefix",
+                {"prefix": f"{safe_link}.%"},
+            )
+            match = cursor.fetchone()
+            hosts_match = bool(match and int(match[0]) == 1)
+        return {
+            "connection": connection_name,
+            "db_link": safe_link,
+            "hosts_match": hosts_match,
+            "other_public_links": other_public,
+            "links": links,
+        }
+    finally:
+        connection.close()
+
+
+@mcp.tool()
+def recreate_public_database_link_from_existing(
+    connection_name: str,
+    source_owner: str,
+    source_link: str,
+    public_link: str,
+    confirmed: bool,
+) -> dict[str, object]:
+    """Drop one public database link and copy an existing link into its place.
+
+    The remote user, connect descriptor, and password verifier are copied inside
+    the database. The result does not include the verifier or connect descriptor.
+    This is persistent DDL and requires confirmed=true.
+    """
+    return public_database_link.recreate_public_link_from_existing(
+        connection_name,
+        source_owner,
+        source_link,
+        public_link,
+        confirmed,
+        _connect_saved_oracle,
+    )
+
+
+@mcp.tool()
+def copy_philippines_link_password_to_public(connection_name: str, confirmed: bool) -> dict[str, object]:
+    """Copy the private PH_DB password onto the public link. Requires confirmed=true."""
+    return public_database_link.copy_private_link_password_to_public(
+        connection_name,
+        "TRANSFER_USER",
+        "PH_DB.SP.ESSENCESECURITY.COM",
+        "PH_DB",
+        confirmed,
+        _connect_saved_oracle,
+    )
+
+
+@mcp.tool()
+def probe_philippines_public_database_link(connection_name: str) -> dict[str, object]:
+    """Open PH_DB inside the database and return Oracle's own error."""
+    return public_database_link.probe_public_link_inside_database(
+        connection_name, "PH_DB", _connect_saved_oracle
+    )
+
+
+@mcp.tool()
+def remove_stale_philippines_private_link(confirmed: bool) -> dict[str, object]:
+    """Delete the superseded private PH_DB row. Requires confirmed=true."""
+    return public_database_link.remove_stale_philippines_private_link(
+        confirmed, _connect_saved_oracle
+    )
+
+
+@mcp.tool()
+def reset_ate_results_password_and_recreate_ph_links(
+    password: str, confirmed: bool
+) -> dict[str, object]:
+    """Set the Philippines ATE_RESULTS password and recreate the PH_DB links.
+
+    The password is not included in the result. This is persistent DDL and
+    requires confirmed=true.
+    """
+    return public_database_link.reset_ate_results_password_and_recreate_links(
+        password, confirmed, _connect_saved_oracle
+    )
+
+
+@mcp.tool()
+def create_philippines_public_link_as_ate_results(
+    connection_name: str, confirmed: bool
+) -> dict[str, object]:
+    """Recreate public PH_DB from the private link so it connects as ATE_RESULTS."""
+    return public_database_link.create_public_link_with_source_verifier(
+        connection_name,
+        "TRANSFER_USER",
+        "PH_DB.SP.ESSENCESECURITY.COM",
+        "PH_DB",
+        confirmed,
+        _connect_saved_oracle,
+    )
+
+
+@mcp.tool()
+def retarget_philippines_public_database_link(
+    connection_name: str, confirmed: bool
+) -> dict[str, object]:
+    """Point public PH_DB at the Philippines listener. Requires confirmed=true."""
+    return public_database_link.retarget_public_philippines_link(
+        connection_name, confirmed, _connect_saved_oracle
+    )
+
+
+@mcp.tool()
+def align_saved_public_database_link_flag(
+    connection_name: str, public_link: str, confirmed: bool
+) -> dict[str, object]:
+    """Give a copied public database link the flag Oracle uses for public links."""
+    return public_database_link.align_public_link_flag(
+        connection_name, public_link, confirmed, _connect_saved_oracle
+    )
+
+
+@mcp.tool()
+def inspect_saved_object_privileges(
+    connection_name: str, grantee: str, object_name: str | None = None
+) -> dict[str, object]:
+    """List direct object grants for one grantee on a saved Oracle connection.
+
+    The result is read-only. It returns privilege names only, never credentials
+    or row data. When object_name is omitted, every direct grant to the grantee
+    is returned.
+    """
+    safe_grantee = grantee.strip().upper()
+    safe_object = object_name.strip().upper() if object_name and object_name.strip() else None
+    identifier = r"[A-Z][A-Z0-9_$#]{0,127}"
+    if not re.fullmatch(identifier, safe_grantee):
+        raise ValueError("grantee must be a simple Oracle identifier.")
+    if safe_object is not None and not re.fullmatch(identifier, safe_object):
+        raise ValueError("object_name must be a simple Oracle identifier.")
+    connection = _connect_saved_oracle(connection_name)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "select owner, table_name, privilege, grantable from dba_tab_privs "
+                "where grantee = :grantee and (:object_name is null or table_name = :object_name) "
+                "order by owner, table_name, privilege",
+                {"grantee": safe_grantee, "object_name": safe_object},
+            )
+            grants = [
+                {
+                    "owner": str(owner),
+                    "object_name": str(name),
+                    "privilege": str(privilege),
+                    "grantable": str(grantable),
+                }
+                for owner, name, privilege, grantable in cursor
+            ]
+        return {
+            "connection": connection_name,
+            "grantee": safe_grantee,
+            "object_name": safe_object,
+            "grants": grants,
+        }
+    finally:
+        connection.close()
+
+
+@mcp.tool()
+def create_philippines_public_database_link(confirmed: bool) -> dict[str, object]:
+    """Create a public database link from Spain Repair Center to the Philippines database.
+
+    The remote account is PH_DBLINK and is created for this link. The password
+    is generated, stored only in the database link, and is not returned. This
+    is persistent DDL and requires confirmed=true.
+    """
+    return public_database_link.create_philippines_public_link(confirmed, _connect_saved_oracle)
+
+
+def _probe_database_link(cursor, db_link: str, owner: str | None) -> dict[str, object]:
+    """Select from DUAL through a link, using the link owner when it is private."""
+    if owner is None:
+        try:
+            cursor.execute(f"select 1 from dual@{db_link}")
+            row = cursor.fetchone()
+            return {
+                "as_user": "CURRENT",
+                "ok": row is not None and int(row[0]) == 1,
+                "error": None,
+            }
+        except Exception as exc:
+            return {"as_user": "CURRENT", "ok": False, "error": str(exc).splitlines()[0][:500]}
+
+    if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_$#]{0,127}", owner):
+        raise ValueError("link owner must be a simple Oracle identifier.")
+    procedure = "MCP_PROBE_DB_LINK"
+    cursor.execute(
+        f"create or replace procedure {owner}.{procedure} authid definer as "
+        "n number; begin select 1 into n from dual@"
+        f"{db_link}; end;"
+    )
+    try:
+        cursor.execute(
+            "select text from dba_errors where owner = :owner and name = :name order by sequence",
+            {"owner": owner, "name": procedure},
+        )
+        compile_errors = [str(text).strip() for (text,) in cursor if text]
+        if compile_errors:
+            return {"as_user": owner, "ok": False, "error": compile_errors[0][:500]}
+        cursor.execute(f"begin {owner}.{procedure}; end;")
+        return {"as_user": owner, "ok": True, "error": None}
+    except Exception as exc:
+        return {"as_user": owner, "ok": False, "error": str(exc).splitlines()[0][:500]}
+    finally:
+        cursor.execute(f"drop procedure {owner}.{procedure}")
+
+
+@mcp.tool()
+def check_ephemeral_oracle_connectivity(
+    base_connection_name: str, host: str, port: int | None = None
+) -> dict[str, object]:
+    """Open and close one Oracle connection reusing a saved connection template.
+
+    Every saved detail (user, privilege mode, service/SID, credentials) comes
+    from ``base_connection_name``; only ``host`` (and optionally ``port``) is
+    overridden. Nothing is persisted to ``connections.json``.
+    """
+    connection = _read_connection(base_connection_name)
+    return ephemeral_oracle.check_host(
+        base_connection_name, connection, host, port, _connect
+    )
+
+
+@mcp.tool()
+def check_saved_last_scn_date(
+    connection_name: str, host: str | None = None, port: int | None = None
+) -> dict[str, object]:
+    """Return the current SCN and the timestamp Oracle maps it to.
+
+    Defaults to the saved host of ``connection_name``. When ``host`` (and
+    optionally ``port``) is provided, every other saved detail (user,
+    privilege mode, service/SID, credentials) is reused and the override is
+    not persisted to ``connections.json``.
+    """
+    connection = _read_connection(connection_name)
+    return ephemeral_oracle.last_scn_date(connection_name, connection, host, port, _connect)
+
+
+@mcp.tool()
+def list_saved_table_timestamp_ranges(
+    connection_name: str,
+    host: str | None = None,
+    port: int | None = None,
+    max_tables: int | None = None,
+) -> dict[str, object]:
+    """List MIN/MAX timestamps for every non-Oracle-maintained table with DATE or TIMESTAMP columns.
+
+    Reports owner, table name, timestamp columns, segment size in MB, and the
+    overall latest and earliest timestamp value across those columns, ordered
+    by segment size, largest first. Each table is read with one aggregate
+    query. Tables are limited to ``max_tables`` when provided. Uses the saved
+    host unless ``host`` (and optionally ``port``) is overridden; the override
+    is not persisted to ``connections.json``.
+    """
+    connection = _read_connection(connection_name)
+    return table_timestamps.list_timestamp_ranges(
+        connection_name, connection, host, port, _connect, max_tables
+    )
+
+
+@mcp.tool()
+def check_saved_clone_and_start_time(
+    connection_name: str, host: str | None = None, port: int | None = None
+) -> dict[str, object]:
+    """Return the clone snapshot time and the instance start time.
+
+    The snapshot time is the frozen ``checkpoint_time`` in the datafile headers
+    (the last checkpoint of the source database before a VM snapshot was
+    taken) while those headers still predate this instance's startup. Once
+    this instance has overwritten the headers with its own checkpoints, the
+    snapshot window is derived from this clone's own ``v$archived_log``
+    instead: the last log fully archived before startup and this instance's
+    startup bound the snapshot moment. The start time is
+    ``v$instance.startup_time``. Useful right after starting a database cloned
+    from a VM snapshot. Uses the saved host unless ``host`` (and optionally
+    ``port``) is overridden; the override is not persisted to
+    ``connections.json``.
+    """
+    connection = _read_connection(connection_name)
+    return clone_time.clone_and_start_time(connection_name, connection, host, port, _connect)
+
+
+@mcp.tool()
+def run_saved_oracle_query(
+    connection_name: str,
+    sql: str,
+    max_rows: int = 500,
+    host: str | None = None,
+    port: int | None = None,
+    service_name: str | None = None,
+    sid: str | None = None,
+) -> dict[str, object]:
+    """Run one read-only SELECT/WITH statement on a saved Oracle connection.
+
+    Returns columns and up to ``max_rows`` rows (1-5000). The statement is
+    rejected unless it starts with SELECT or WITH and contains no DML, DDL,
+    or ``FOR UPDATE``. Uses the saved host unless ``host`` (and optionally
+    ``port``) is overridden. Pass ``service_name`` to override the saved
+    service (empty string connects by SID), or ``sid`` to override the saved
+    SID; the override is not persisted to ``connections.json``.
+    """
+    connection = _read_connection(connection_name)
+    return saved_query.run_saved_query(
+        connection_name, connection, sql, max_rows, _connect, host, port, service_name, sid
+    )
+
+
+@mcp.tool()
+def create_saved_readonly_user(
+    connection_name: str,
+    username: str,
+    password: str,
+    confirmed: bool = False,
+    with_dictionary_access: bool = False,
+) -> dict[str, object]:
+    """Create (or reset) a read-only user that can select any table.
+
+    Grants CREATE SESSION plus SELECT ANY TABLE (and SELECT ANY DICTIONARY
+    when with_dictionary_access is true). An existing user keeps its objects:
+    the password is replaced and the account is unlocked. The password is
+    never returned. This is persistent DDL and requires confirmed=true.
+    """
+    return readonly_user.create_readonly_user(
+        connection_name,
+        username,
+        password,
+        confirmed,
+        _connect_saved_oracle,
+        with_dictionary_access,
+    )
 
 
 if __name__ == "__main__":

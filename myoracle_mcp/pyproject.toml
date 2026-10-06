@@ -8,6 +8,7 @@ dependencies = [
   "oracledb>=4,<5",
   "paramiko>=3.4,<4",
   "psycopg2-binary>=2.9,<3",
+  "cryptography>=43,<47",
 ]
 
 [tool.uv]

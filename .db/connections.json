@@ -52,6 +52,8 @@
       "privilege_mode": "SYSDBA",
       "sslmode": "disable",
       "credential_target": "OracleMCP/RH/SYS",
+      "ssh_username": "brillix11",
+      "ssh_credential_target": "SSH/rh-oracle.essencesecurity.com",
       "purpose": "Read-only Oracle metadata inspection for RH",
       "status": "unverified"
     },
@@ -119,6 +121,7 @@
       "port": 1521,
       "database": "dwhcl",
       "sid": "dwhcl",
+      "service_name": "flexdwhcl.essencesecurity.com",
       "username": "SYS",
       "privilege_mode": "SYSDBA",
       "sslmode": "disable",

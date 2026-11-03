@@ -40,7 +40,29 @@ import object_retire
 import connection_migration
 import local_postgres
 import transfer_queue
+import ph_remaining_copy
+import hungary_targeted_copy
+import site_force_refresh
+import remote_copy
+import exact_table_stats
+import schema_datapump
+import schema_sql_copy
+import package_overloads
+import scheduled_task_logon
 
+
+def _ensure_windows_programdata() -> None:
+    """Give Windows child processes ProgramData when the MCP host omitted it.
+
+    The MCP stdio transport inherits a short environment allowlist that does not
+    include ProgramData. Windows OpenSSH exits 255 with no output unless it is set.
+    """
+    if os.name != "nt" or os.environ.get("ProgramData"):
+        return
+    os.environ["ProgramData"] = r"C:\ProgramData"
+
+
+_ensure_windows_programdata()
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 CONNECTIONS_FILE = REPOSITORY_ROOT / ".db" / "connections.json"
@@ -231,59 +253,88 @@ def _read_windows_credential(target: str) -> str:
         advapi32.CredFree(credential_ptr)
 
 
-def _daily_routine_notification_messages(result: dict[str, Any]) -> list[str]:
-    """Format every daily-routine problem into at most three Slack messages."""
+def _daily_routine_notification_lines(result: dict[str, Any], compact: bool = False) -> list[str]:
+    """Return one line per reported problem, optionally in compact form.
+
+    ``compact`` renders every problem of a target on one line and shortens the
+    alert-log and refresh text, so the same findings need far less room.
+    """
     lines = [
         "Oracle capacity, alert-log, RMAN backup, and Spain refresh alerts: " + ("OK" if result["ok_count"] == result["target_count"] else "ATTENTION"),
         f"Targets: {result['target_count']} | Alerts: {result['issue_count']} | Unreachable: {result.get('failed_count', 0)}",
         f"Minimum free space: {result['minimum_free_percent']:g}%",
     ]
     for target in result["targets"]:
+        name = target["connection_name"]
         if target.get("status") == "failed":
             error = " ".join(str(target.get("error") or "connection failed").split())
-            if len(error) > 180:
-                error = error[:177] + "..."
-            lines.append(f"\n{target['connection_name']} — NOT CONNECTED")
+            limit = 120 if compact else 180
+            if len(error) > limit:
+                error = error[: limit - 3] + "..."
+            lines.append(f"\n{name} — NOT CONNECTED")
             lines.append(f"Connection ALERT: {error}")
             continue
         if not target.get("space_issues") and not target.get("backup_alerts") and not target.get("refresh_mv_alerts") and not target.get("alert_log_alerts"):
             continue
-        lines.append(f"\n{target['connection_name']} — {target['status'].upper()}")
+        parts: list[str] = []
         for issue in target.get("space_issues", []):
-            lines.append(
-                f"Space: {issue['tablespace_name']} {issue['free_percent']:.2f}% free; {issue['issue']}"
-            )
+            if compact:
+                parts.append(f"Space {issue['tablespace_name']} {issue['free_percent']:.2f}%")
+            else:
+                parts.append(
+                    f"Space: {issue['tablespace_name']} {issue['free_percent']:.2f}% free; {issue['issue']}"
+                )
         for alert in target.get("backup_alerts", []):
             if alert["type"] == "failed_backup":
-                lines.append(f"Backup ALERT: {alert['status']}; ended {alert['end_time']}; size {alert['backup_size']}")
+                parts.append(f"Backup {alert['status']} ended {alert['end_time']}")
+            elif compact:
+                parts.append(f"no L{alert['incremental_level']} in {alert['days']}d")
             else:
-                lines.append(
+                parts.append(
                     "Backup ALERT: no incremental level "
                     f"{alert['incremental_level']} completed in {alert['days']} days"
                 )
         alert_log_alerts = target.get("alert_log_alerts") or []
-        if alert_log_alerts:
-            if alert_log_alerts[0].get("type") == "alert_log_check_failed":
-                lines.append(f"Alert log ALERT: check failed; {alert_log_alerts[0]['error']}")
+        if alert_log_alerts and alert_log_alerts[0].get("type") == "alert_log_check_failed":
+            error = alert_log_alerts[0]["error"]
+            if compact:
+                parts.append(f"Log unreadable: {error[:80]}")
             else:
-                shown = alert_log_alerts[:8]
-                summary = "; ".join(f"{alert['code']} x{alert['count']}" for alert in shown)
-                extra = len(alert_log_alerts) - len(shown)
-                if extra:
-                    summary += f"; and {extra} more"
-                lines.append(f"Alert log: {summary}")
-        for alert in target.get("refresh_mv_alerts", []):
+                parts.append(f"Alert log ALERT: check failed; {error}")
+        elif alert_log_alerts:
+            shown = alert_log_alerts[: 5 if compact else 8]
+            summary = "; ".join(f"{alert['code']} x{alert['count']}" for alert in shown)
+            extra = len(alert_log_alerts) - len(shown)
+            if extra:
+                summary += f"; and {extra} more"
+            parts.append(("Log " if compact else "Alert log: ") + summary)
+        refresh_alerts = target.get("refresh_mv_alerts") or []
+        for alert in refresh_alerts[: 2 if compact else None]:
             if alert["type"] == "refresh_mv_error":
-                lines.append(
-                    "Refresh-MV ALERT: ERROR; "
-                    f"ended {alert['ended_at']}; {alert['error']}"
-                )
+                if compact:
+                    parts.append(f"RefreshMV ERROR ended {alert['ended_at']}")
+                else:
+                    parts.append(
+                        "Refresh-MV ALERT: ERROR; "
+                        f"ended {alert['ended_at']}; {alert['error']}"
+                    )
+            elif compact:
+                parts.append(f"RefreshMV not run in {alert['hours']}h")
             else:
-                lines.append(
+                parts.append(
                     "Refresh-MV ALERT: status FAILURE; not executed in "
                     f"the last {alert['hours']} hours"
                 )
+        if compact:
+            lines.append(f"\n{name} — {target['status'].upper()}: " + " | ".join(parts))
+        else:
+            lines.append(f"\n{name} — {target['status'].upper()}")
+            lines.extend(parts)
+    return lines
 
+
+def _daily_routine_notification_chunks(lines: list[str]) -> list[str]:
+    """Pack notification lines into messages of at most 800 characters."""
     messages: list[str] = []
     current = ""
     for line in lines:
@@ -295,6 +346,23 @@ def _daily_routine_notification_messages(result: dict[str, Any]) -> list[str]:
             current = candidate
     if current:
         messages.append(current)
+    return messages
+
+
+def _daily_routine_notification_messages(result: dict[str, Any]) -> list[str]:
+    """Format every daily-routine problem into at most three Slack messages.
+
+    The detailed rendering is used while it fits. When the findings outgrow
+    three messages, the compact rendering is used instead so the notification
+    still carries every problem rather than being dropped.
+    """
+    messages = _daily_routine_notification_chunks(_daily_routine_notification_lines(result))
+    if len(messages) > 3:
+        compact_messages = _daily_routine_notification_chunks(
+            _daily_routine_notification_lines(result, compact=True)
+        )
+        if len(compact_messages) <= 3:
+            messages = compact_messages
     if len(messages) > 3:
         raise RuntimeError("Daily routine notification exceeds the three-message limit")
     return [
@@ -701,6 +769,21 @@ def _ssh_settings(connection_name: str, connection: dict[str, Any]) -> tuple[str
     return username, target, int(connection.get("ssh_port", 22))
 
 
+def _tcp_port_open(host: str, port: int) -> bool:
+    return schema_datapump.tcp_open(host, port)
+
+
+def _open_saved_remote(connection_name: str):
+    """Open SSH when port 22 answers, otherwise the saved Windows admin share."""
+    connection = _read_connection(connection_name)
+    host = str(connection["host"])
+    port = int(connection.get("ssh_port", 22))
+    if _tcp_port_open(host, port):
+        return schema_datapump.ParamikoRemote(_open_ssh(connection_name))
+    username, target, _port = _ssh_settings(connection_name, connection)
+    return schema_datapump.SmbRemote(host, username, _read_windows_credential(target))
+
+
 def _open_ssh(connection_name: str) -> paramiko.SSHClient:
     connection = _read_connection(connection_name)
     username, target, port = _ssh_settings(connection_name, connection)
@@ -856,7 +939,7 @@ def upload_files_to_saved_host(
     local_files: list[str],
     remote_directory: str,
 ) -> dict[str, Any]:
-    """Upload explicitly selected repository files to a saved SSH host directory."""
+    """Upload explicitly selected repository files to a saved SSH host with scp."""
     if not local_files or not remote_directory:
         raise ValueError("local_files and remote_directory are required")
     remote = remote_directory.replace("\\", "/")
@@ -869,28 +952,23 @@ def upload_files_to_saved_host(
         if repo not in source.parents or not source.is_file():
             raise ValueError(f"local file is outside ORCL or missing: {relative}")
         sources.append(source)
-    client = _open_ssh(connection_name)
-    uploaded = []
+    connection = _read_connection(connection_name)
+    username, target, port = _ssh_settings(connection_name, connection)
+    password = _read_windows_credential(target)
+    host = str(connection["host"])
     try:
-        sftp = client.open_sftp()
-        try:
-            parts = remote.split("/")
-            current = parts[0]
-            for part in parts[1:]:
-                current = f"{current}/{part}"
-                try:
-                    sftp.stat(current)
-                except OSError:
-                    sftp.mkdir(current)
-            for source in sources:
-                target = f"{remote.rstrip('/')}/{source.name}"
-                sftp.put(str(source), target)
-                uploaded.append(target)
-        finally:
-            sftp.close()
-    finally:
-        client.close()
-    return {"connection_name": connection_name, "remote_directory": remote, "uploaded": uploaded}
+        result = remote_copy.upload_with_scp(host, port, username, password, sources, remote)
+    except RuntimeError as exc:
+        if not remote_copy.missing_directory(str(exc)):
+            raise
+        remote_copy.create_remote_directory(host, port, username, password, remote)
+        result = remote_copy.upload_with_scp(host, port, username, password, sources, remote)
+    return {
+        "connection_name": connection_name,
+        "remote_directory": remote,
+        "uploaded": result["uploaded"],
+        "seconds": result["seconds"],
+    }
 
 
 def _validated_windows_path(path: str, label: str) -> str:
@@ -964,6 +1042,29 @@ def inspect_saved_scheduled_task(connection_name: str, task_name: str) -> dict[s
         raise ValueError("task_name must be an absolute Windows Task Scheduler path")
     result = run_ssh_command(connection_name, f'schtasks /query /tn "{task_name}" /fo LIST /v')
     return {"connection_name": connection_name, "task_name": task_name, **result}
+
+
+@mcp.tool()
+def set_saved_scheduled_task_run_whether_logged_on(connection_name: str, task_name: str) -> dict[str, Any]:
+    """Make one saved-host scheduled task run whether its account is logged on.
+
+    The password is the saved SSH credential for ``connection_name``. It is sent
+    on the remote PowerShell process stdin and is never returned. The task keeps
+    its existing account and switches that principal to a stored-password logon.
+    """
+    connection = _read_connection(connection_name)
+    _username, target, _port = _ssh_settings(connection_name, connection)
+    password = _read_windows_credential(target)
+    client = _open_ssh(connection_name)
+    try:
+        updated = scheduled_task_logon.set_run_whether_logged_on(client, task_name, password)
+    finally:
+        client.close()
+    return {
+        "connection_name": connection_name,
+        "credential_target": target,
+        **updated,
+    }
 
 
 def _powershell_literal(value: str) -> str:
@@ -1339,6 +1440,98 @@ def compare_saved_schema_movement(
         "target_materialized_views": target_inventory["materialized_views"],
         **comparison,
     }
+
+
+@mcp.tool()
+def copy_saved_schemas_with_datapump(
+    source_connection: str,
+    target_connection: str,
+    schemas: list[str],
+    tablespace_remap: dict[str, str] | None = None,
+    directory_name: str = "PUMP_DIR",
+    source_directory_name: str | None = None,
+    target_directory_name: str | None = None,
+    confirmed: bool = False,
+) -> dict[str, Any]:
+    """Copy schemas with Data Pump, zip the dump, then transfer and import it.
+
+    Stops before creating a dump when any requested schema already exists on
+    the target. The dump file is compressed on the source host and only the
+    zip is copied. ``confirmed`` must be true before export or import runs.
+    Tablespaces that exist only on the source must be listed in
+    ``tablespace_remap``. When SSH is closed, file transfer uses the saved
+    Windows account over the admin share. Credentials are never returned.
+    """
+    return schema_datapump.copy_schemas(
+        source_connection,
+        target_connection,
+        schemas,
+        confirmed=confirmed,
+        tablespace_remap=tablespace_remap,
+        directory_name=directory_name,
+        source_directory_name=source_directory_name,
+        target_directory_name=target_directory_name,
+        connect=_connect_saved_oracle,
+        open_ssh=_open_saved_remote,
+    )
+
+
+@mcp.tool()
+def copy_saved_schema_without_datapump(
+    source_connection: str,
+    target_connection: str,
+    schema_name: str,
+    tablespace_remap: dict[str, str] | None = None,
+    confirmed: bool = False,
+    resume: bool = False,
+) -> dict[str, Any]:
+    """Copy one schema with DBMS_METADATA and insert its rows.
+
+    Stops before any change when the schema already exists on the target.
+    Pass ``resume=true`` to create objects and rows that are still missing.
+    Does not use Data Pump, so a timezone-file mismatch does not block it.
+    ``confirmed`` must be true before the target is changed. The source
+    password verifier is applied and never returned.
+    """
+    return schema_sql_copy.copy_schema(
+        source_connection,
+        target_connection,
+        schema_name,
+        confirmed=confirmed,
+        tablespace_remap=tablespace_remap,
+        connect=_connect_saved_oracle,
+        resume=resume,
+    )
+
+
+@mcp.tool()
+def sync_saved_package_overloads(
+    source_connection: str,
+    target_connection: str,
+    owner: str,
+    package_name: str,
+    procedure_name: str,
+    confirmed: bool = False,
+    trigger_owner: str | None = None,
+    trigger_name: str | None = None,
+) -> dict[str, Any]:
+    """Copy every overload of one packaged procedure and compile a trigger.
+
+    The rest of the target package is left in place. ``confirmed`` must be
+    true before the target package is replaced. When a trigger is named, it
+    is compiled after the package body.
+    """
+    return package_overloads.sync_overloads(
+        source_connection,
+        target_connection,
+        owner,
+        package_name,
+        procedure_name,
+        confirmed=confirmed,
+        connect=_connect_saved_oracle,
+        trigger_owner=trigger_owner,
+        trigger_name=trigger_name,
+    )
 
 
 @mcp.tool()
@@ -3310,6 +3503,58 @@ def gather_saved_table_statistics(
         connection.close()
 
 @mcp.tool()
+def gather_saved_exact_table_statistics(
+    connection_names: list[str],
+    degree: int = 10,
+    timeout_seconds: int = 10800,
+    confirmed: bool = False,
+    resume: bool = False,
+    estimate_percent: int = 100,
+    unlock_statistics: bool = False,
+    locked_only: bool = False,
+) -> dict[str, Any]:
+    """Gather table statistics on one or more saved Oracle databases.
+
+    Each named connection runs at the same time, in the background, so this
+    call returns as soon as the work has started. Tables owned by
+    non-Oracle-maintained users are gathered one at a time with
+    ``DBMS_STATS.GATHER_TABLE_STATS`` at ``estimate_percent`` (default 100)
+    and the requested parallel ``degree``. ``unlock_statistics`` unlocks each
+    table before gathering it. ``locked_only`` limits the run to tables whose
+    statistics are already locked. Temporary, nested, external, secondary,
+    recycle-bin, and ``$`` names are skipped. Work on a connection stops when
+    ``timeout_seconds`` is reached (maximum 3 hours). ``resume=true`` skips
+    tables already recorded under ``reports/exact_table_stats``. Requires
+    ``confirmed=true``.
+    """
+    if confirmed is not True:
+        raise ValueError(
+            "Set confirmed=true only after explicit approval to gather exact table statistics."
+        )
+    names = exact_table_stats.validate_request(connection_names, degree, timeout_seconds)
+    exact_table_stats.validate_estimate(estimate_percent)
+    progress_dir = Path(__file__).resolve().parent.parent / "reports" / "exact_table_stats"
+
+    def connect(name: str) -> tuple[Any, Any]:
+        record = _read_connection(name)
+        database = _connect(record)
+        cursor = database.cursor()
+        schema_movement.enter_open_pluggable_database(cursor)
+        return database, cursor
+
+    return exact_table_stats.start_background(
+        names,
+        connect,
+        degree,
+        timeout_seconds,
+        progress_dir,
+        resume,
+        estimate_percent,
+        unlock_statistics,
+        locked_only,
+    )
+
+@mcp.tool()
 def compare_saved_table_statistics_to_counts(
     connection_name: str, tables: list[dict[str, str]]
 ) -> dict[str, object]:
@@ -4884,6 +5129,158 @@ def create_saved_transfer_products_queue(connection_name: str, confirmed: bool =
             result = transfer_queue.ensure_transfer_products_queue(cursor)
         result["connection"] = connection_name
         return result
+    finally:
+        connection.close()
+
+
+@mcp.tool()
+def copy_saved_remaining_ph_units(connection_name: str, confirmed: bool = False) -> dict[str, object]:
+    """Copy PH units the refresh left out of the Spain global table.
+
+    Inserts serials still in ``TRANSFER_USER.PH_UUT_ATTRUBUTES`` and listed
+    products that are stored only as ``FIRST_UUT_NAME``. A serial already in
+    ``ATE_RESULTS.GLOBAL_UUT_ATTRIBUTES`` is left unchanged. Each new serial
+    is recorded in ``TRANSFER_USER.TRANSFER_LOG`` with source ``PH``.
+    Run this on the Spain Repair Center connection. Requires ``confirmed=true``.
+    """
+    if confirmed is not True:
+        raise ValueError("Set confirmed=true only after explicit approval to copy the remaining PH units.")
+    connection = _connect_saved_oracle(connection_name)
+    try:
+        with connection.cursor() as cursor:
+            result = ph_remaining_copy.copy_remaining_ph_units(cursor)
+        connection.commit()
+        result["connection"] = connection_name
+        result["status"] = "copied"
+        return result
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+@mcp.tool()
+def copy_saved_hungary_units_by_rf(
+    connection_name: str, rf_numbers: list[str], confirmed: bool = False
+) -> dict[str, object]:
+    """Copy listed Hungary RF numbers into the Spain global table.
+
+    Inserts only rows from ``TRANSFER_USER.HUNGARY_UUT_ATTRUBUTES`` whose
+    ``RF_NUMBER`` is in ``rf_numbers`` and is absent from
+    ``ATE_RESULTS.GLOBAL_UUT_ATTRIBUTES`` by serial and by RF. Each new
+    serial is recorded in ``TRANSFER_USER.TRANSFER_LOG`` with source
+    ``Hungary``. Matching rows in ``HUHGARY_UUT_ATTRIBUTES_UPDATE`` refresh
+    the global row and are logged with status ``R``. Serials
+    (``HUNGARY_NKEYS_ALLOCATED``) are out of scope and left to the normal
+    refresh. Run this on the Spain Repair Center connection. Requires
+    ``confirmed=true``.
+    """
+    rf_list = hungary_targeted_copy.normalize_rf_numbers(rf_numbers)
+    if confirmed is not True:
+        raise ValueError("Set confirmed=true only after explicit approval to copy the listed Hungary units.")
+    connection = _connect_saved_oracle(connection_name)
+    try:
+        with connection.cursor() as cursor:
+            result = hungary_targeted_copy.copy_hungary_units_by_rf(cursor, rf_list)
+        connection.commit()
+        result["connection"] = connection_name
+        result["status"] = "copied"
+        return result
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+@mcp.tool()
+def copy_saved_hungary_remaining_units(
+    connection_name: str, confirmed: bool = False
+) -> dict[str, object]:
+    """Copy every Hungary MV row missing from the Spain global table.
+
+    Inserts all rows from ``TRANSFER_USER.HUNGARY_UUT_ATTRUBUTES`` whose
+    serial and RF number are both absent from
+    ``ATE_RESULTS.GLOBAL_UUT_ATTRIBUTES``, then records them in
+    ``TRANSFER_USER.TRANSFER_LOG`` with source ``Hungary``. Matching rows
+    in ``HUHGARY_UUT_ATTRIBUTES_UPDATE`` refresh the global row and are
+    logged with status ``R``. Serials (``HUNGARY_NKEYS_ALLOCATED``) are out
+    of scope and left to the normal refresh. Run this on the Spain Repair
+    Center connection. Requires ``confirmed=true``.
+    """
+    if confirmed is not True:
+        raise ValueError("Set confirmed=true only after explicit approval to copy the remaining Hungary units.")
+    connection = _connect_saved_oracle(connection_name)
+    try:
+        with connection.cursor() as cursor:
+            result = hungary_targeted_copy.copy_hungary_remaining_units(cursor)
+        connection.commit()
+        result["connection"] = connection_name
+        result["status"] = "copied"
+        return result
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+@mcp.tool()
+def force_saved_site_refresh(connection_name: str, site: str, confirmed: bool = False) -> dict[str, object]:
+    """Force one site's TRANSFER_USER refresh from the Spain Repair Center.
+
+    Refreshes that site's three materialized views (complete refresh),
+    gathers their statistics, copies every new UUT row into
+    ``ATE_RESULTS.GLOBAL_UUT_ATTRIBUTES`` and ``SERIAL_NUMBER.NKEYS_ALLOCATED``
+    without any queue or cooldown gate, records the transfers in
+    ``TRANSFER_USER.TRANSFER_LOG`` / ``TRANSFER_LOG_SERIAL``, and writes the
+    ``DAILY_TRANSFER`` audit record. ``site`` is one of Hungary, Ofakim, RH,
+    PH. Requires ``confirmed=true``.
+    """
+    if site not in site_force_refresh.SITES:
+        raise ValueError(f"Unknown site {site!r}. Choose one of {sorted(site_force_refresh.SITES)}.")
+    if confirmed is not True:
+        raise ValueError("Set confirmed=true only after explicit approval to force the site refresh.")
+    connection = _connect_saved_oracle(connection_name)
+    try:
+        with connection.cursor() as cursor:
+            result = site_force_refresh.force_site_refresh(cursor, site)
+        connection.commit()
+        result["connection"] = connection_name
+        result["status"] = "refreshed"
+        return result
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+@mcp.tool()
+def enqueue_saved_untransferred_products(connection_name: str, confirmed: bool = False) -> dict[str, object]:
+    """Enqueue product names the insert trigger never recorded.
+
+    For one saved site, inserts ``LAST_UUT_NAME`` into
+    ``ATE_RESULTS.TRANSFER_PRODUCTS_LOG`` and
+    ``ATE_RESULTS.TRANSFER_PRODUCTS_QUEUE``, the same two writes the
+    AFTER INSERT trigger performs. A name is included only when it is in
+    ``TRANSFER_PRODUCTS`` and absent from both the log and the queue.
+    Requires ``confirmed=true``.
+    """
+    if confirmed is not True:
+        raise ValueError("Set confirmed=true only after explicit approval to enqueue transfer products.")
+    connection = _connect_saved_oracle(connection_name)
+    try:
+        with connection.cursor() as cursor:
+            result = transfer_queue.enqueue_unlogged_products(cursor)
+        connection.commit()
+        result["connection"] = connection_name
+        result["status"] = "queued"
+        return result
+    except Exception:
+        connection.rollback()
+        raise
     finally:
         connection.close()
 

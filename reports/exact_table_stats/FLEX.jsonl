@@ -1,0 +1,690 @@
+{"connection": "FLEX", "owner": "ACOUSTIC_SYS", "table_name": "LIMITS", "status": "gathered", "exact_row_count": 3, "last_analyzed": "2026-10-13 12:12:37"}
+{"connection": "FLEX", "owner": "ACOUSTIC_SYS", "table_name": "MEAS_IVI_SINGLEPOINT", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:12:37"}
+{"connection": "FLEX", "owner": "ACOUSTIC_SYS", "table_name": "MEAS_IVI_WAVE", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:12:37"}
+{"connection": "FLEX", "owner": "ACOUSTIC_SYS", "table_name": "MEAS_IVI_WAVEPAIR", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:12:37"}
+{"connection": "FLEX", "owner": "ACOUSTIC_SYS", "table_name": "MEAS_NUMERICLIMIT", "status": "gathered", "exact_row_count": 132, "last_analyzed": "2026-10-13 12:12:38"}
+{"connection": "FLEX", "owner": "ACOUSTIC_SYS", "table_name": "MESSAGE_TYPE", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:12:38"}
+{"connection": "FLEX", "owner": "ACOUSTIC_SYS", "table_name": "SETTING_NUMERIC_ARRAY", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:12:38"}
+{"connection": "FLEX", "owner": "ACOUSTIC_SYS", "table_name": "SETTING_STRING_ARRAY", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:12:38"}
+{"connection": "FLEX", "owner": "ACOUSTIC_SYS", "table_name": "STATION_ADDRESSES", "status": "gathered", "exact_row_count": 1, "last_analyzed": "2026-10-13 12:12:38"}
+{"connection": "FLEX", "owner": "ACOUSTIC_SYS", "table_name": "STATION_PARAMS", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:12:38"}
+{"connection": "FLEX", "owner": "ACOUSTIC_SYS", "table_name": "STEP_CALLEXE", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:12:38"}
+{"connection": "FLEX", "owner": "ACOUSTIC_SYS", "table_name": "STEP_MSGPOPUP", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:12:38"}
+{"connection": "FLEX", "owner": "ACOUSTIC_SYS", "table_name": "STEP_PASSFAIL", "status": "gathered", "exact_row_count": 16, "last_analyzed": "2026-10-13 12:12:38"}
+{"connection": "FLEX", "owner": "ACOUSTIC_SYS", "table_name": "STEP_PROPERTYLOADER", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:12:38"}
+{"connection": "FLEX", "owner": "ACOUSTIC_SYS", "table_name": "STEP_RESULT", "status": "gathered", "exact_row_count": 324, "last_analyzed": "2026-10-13 12:12:38"}
+{"connection": "FLEX", "owner": "ACOUSTIC_SYS", "table_name": "STEP_SEQCALL", "status": "gathered", "exact_row_count": 147, "last_analyzed": "2026-10-13 12:12:39"}
+{"connection": "FLEX", "owner": "ACOUSTIC_SYS", "table_name": "STEP_STRINGVALUE", "status": "gathered", "exact_row_count": 29, "last_analyzed": "2026-10-13 12:12:39"}
+{"connection": "FLEX", "owner": "ACOUSTIC_SYS", "table_name": "UUT_CONFIGURATIONS", "status": "gathered", "exact_row_count": 1, "last_analyzed": "2026-10-13 12:12:39"}
+{"connection": "FLEX", "owner": "ACOUSTIC_SYS", "table_name": "UUT_RESULT", "status": "gathered", "exact_row_count": 15, "last_analyzed": "2026-10-13 12:12:39"}
+{"connection": "FLEX", "owner": "ACOUSTIC_SYS", "table_name": "UUT_TESTS", "status": "gathered", "exact_row_count": 1, "last_analyzed": "2026-10-13 12:12:39"}
+{"connection": "FLEX", "owner": "ACOUSTIC_SYS", "table_name": "UUT_TYPES", "status": "gathered", "exact_row_count": 1, "last_analyzed": "2026-10-13 12:12:39"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "AMYTEST", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:12:39"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "LOG_PROCEDURE", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:12:39"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "MEAS_NUMERICLIMIT", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:12:39"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "MEAS_NUMERICLIMIT_HIST", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:12:39"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "MYTEST", "status": "gathered", "exact_row_count": 400000, "last_analyzed": "2026-10-13 12:12:39"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "MYTEST1", "status": "gathered", "exact_row_count": 200000, "last_analyzed": "2026-10-13 12:12:44"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "MYTEST2", "status": "gathered", "exact_row_count": 100000, "last_analyzed": "2026-10-13 12:12:46"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "MYTEST3", "status": "gathered", "exact_row_count": 100000, "last_analyzed": "2026-10-13 12:12:48"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "STARTT", "status": "gathered", "exact_row_count": 1, "last_analyzed": "2026-10-13 12:12:50"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "SYS_IMPORT_SCHEMA_01", "status": "gathered", "exact_row_count": 7263, "last_analyzed": "2026-10-13 12:12:50"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "SYS_IMPORT_SCHEMA_02", "status": "gathered", "exact_row_count": 1509, "last_analyzed": "2026-10-13 12:12:51"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "SYS_IMPORT_SCHEMA_03", "status": "gathered", "exact_row_count": 1508, "last_analyzed": "2026-10-13 12:12:52"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "SYS_IMPORT_SCHEMA_04", "status": "gathered", "exact_row_count": 1508, "last_analyzed": "2026-10-13 12:12:52"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "SYS_IMPORT_SCHEMA_05", "status": "gathered", "exact_row_count": 1557, "last_analyzed": "2026-10-13 12:12:52"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "SYS_IMPORT_SCHEMA_06", "status": "gathered", "exact_row_count": 1559, "last_analyzed": "2026-10-13 12:12:53"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "SYS_IMPORT_SCHEMA_07", "status": "gathered", "exact_row_count": 1558, "last_analyzed": "2026-10-13 12:12:53"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "SYS_IMPORT_SCHEMA_08", "status": "gathered", "exact_row_count": 1532, "last_analyzed": "2026-10-13 12:12:54"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "SYS_IMPORT_SCHEMA_09", "status": "gathered", "exact_row_count": 1886, "last_analyzed": "2026-10-13 12:12:54"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "SYS_IMPORT_SCHEMA_10", "status": "gathered", "exact_row_count": 1973, "last_analyzed": "2026-10-13 12:12:54"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "SYS_IMPORT_SCHEMA_11", "status": "gathered", "exact_row_count": 3341, "last_analyzed": "2026-10-13 12:12:55"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "SYS_IMPORT_SCHEMA_12", "status": "gathered", "exact_row_count": 1510, "last_analyzed": "2026-10-13 12:12:55"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "SYS_IMPORT_SCHEMA_13", "status": "gathered", "exact_row_count": 1509, "last_analyzed": "2026-10-13 12:12:56"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "SYS_IMPORT_SCHEMA_14", "status": "gathered", "exact_row_count": 1509, "last_analyzed": "2026-10-13 12:12:56"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "SYS_IMPORT_SCHEMA_15", "status": "gathered", "exact_row_count": 1557, "last_analyzed": "2026-10-13 12:12:57"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "SYS_IMPORT_SCHEMA_16", "status": "gathered", "exact_row_count": 1560, "last_analyzed": "2026-10-13 12:12:57"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "SYS_IMPORT_SCHEMA_17", "status": "gathered", "exact_row_count": 1559, "last_analyzed": "2026-10-13 12:12:58"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "SYS_IMPORT_SCHEMA_18", "status": "gathered", "exact_row_count": 1533, "last_analyzed": "2026-10-13 12:12:58"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "SYS_IMPORT_SCHEMA_19", "status": "gathered", "exact_row_count": 1887, "last_analyzed": "2026-10-13 12:12:58"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "SYS_IMPORT_SCHEMA_20", "status": "gathered", "exact_row_count": 1973, "last_analyzed": "2026-10-13 12:12:59"}
+{"connection": "FLEX", "owner": "ALEXEY", "table_name": "SYS_IMPORT_SCHEMA_21", "status": "gathered", "exact_row_count": 3342, "last_analyzed": "2026-10-13 12:12:59"}
+{"connection": "FLEX", "owner": "ALONSPIEGEL", "table_name": "INVALID_OBJS_ORIG", "status": "gathered", "exact_row_count": 130, "last_analyzed": "2026-10-13 12:13:00"}
+{"connection": "FLEX", "owner": "ATE", "table_name": "TS_FORM_COLUMNS_TO_VALIDATE", "status": "gathered", "exact_row_count": 3, "last_analyzed": "2026-10-13 12:13:00"}
+{"connection": "FLEX", "owner": "ATE", "table_name": "TS_FORM_SEQUENCE_TO_VALIDATE", "status": "gathered", "exact_row_count": 3, "last_analyzed": "2026-10-13 12:13:00"}
+{"connection": "FLEX", "owner": "ATE_PRODUCTS", "table_name": "LABELS_DATA", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "ATE_PRODUCTS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "ATE_RELEASED_VERSIONS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "CCID_PANELS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "DATA_BASE_TYPE_TABLE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "GENERAL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "GLOBAL_PRODUCT_TYPE_TABLE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "MAIL_GROUPS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "MAIL_OUTBOX", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "MAIL_SENT_ITEMS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "REPORT_PARAMETERS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "SCHEMA_NAMES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "SEARCH_OPTIONS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "SUB_TEST_NAMES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_ALL_STATIONS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_FAILURECATEGORY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_GROUPS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_KIND_OF_WORK_TEST", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_LAST_UPDATE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_MAIN_OOBA", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_NFF_PROPERTY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_NFF_TEST", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_OOBA_DATA", "status": "gathered", "exact_row_count": 82302, "last_analyzed": "2026-10-13 12:13:01"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_OOBA_ROWS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_OOBA_TYPES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_OPEN_ISSUE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_PART_NUMBERS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_QUALITY_TASK_REPORT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_REPAIR_NFT_10", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_REPORTS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_REPOTS_GROUP", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_SITES", "status": "gathered", "exact_row_count": 8, "last_analyzed": "2026-10-13 12:13:03"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_STATION_CAPACITY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_STATION_FORCE_BLOCK", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_STATION_STATUS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_TYTLE_OOBA", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_USERGROUPS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_USERS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_WEB_PERMISSION", "status": "gathered", "exact_row_count": 3, "last_analyzed": "2026-10-13 12:13:04"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TBL_WEB_USERS", "status": "gathered", "exact_row_count": 50, "last_analyzed": "2026-10-13 12:13:04"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "TEST_NAMES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "USER_NAME_STATUS_TABLE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "USER_NAME_TABLE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_REPORTS", "table_name": "WORKE_MODE_TABLE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_RESULTS", "table_name": "EXTERNAL_UUT_ATTRUBUTES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_RESULTS", "table_name": "EXTERNAL_UUT_ATTRUBUTES_ERRORS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_RESULTS", "table_name": "EXTERNAL_UUT_RESULTS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_RESULTS", "table_name": "GLOBAL_UUT_ATTRIBUTES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_RESULTS", "table_name": "GLOBAL_UUT_ATTR_ERR", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_RESULTS", "table_name": "GLOBAL_UUT_RESULT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_RESULTS", "table_name": "LINK_TESTS_VS_DIGIT", "status": "gathered", "exact_row_count": 10, "last_analyzed": "2026-10-13 12:13:04"}
+{"connection": "FLEX", "owner": "ATE_RESULTS", "table_name": "MAINTENANCE_REPAIR", "status": "gathered", "exact_row_count": 11, "last_analyzed": "2026-10-13 12:13:04"}
+{"connection": "FLEX", "owner": "ATE_RESULTS", "table_name": "SITE_UUT_ATTRUBUTES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_RESULTS", "table_name": "SITE_UUT_ATTRUBUTES_ERRORS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_RESULTS", "table_name": "SITE_UUT_ATT_UPDATES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_RESULTS", "table_name": "SITE_UUT_RESULT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_RESULTS", "table_name": "SITE_UUT_RESULT_ERRORS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_RESULTS", "table_name": "TBL_AUTOMATIC_BLOCK", "status": "gathered", "exact_row_count": 1, "last_analyzed": "2026-10-13 12:13:05"}
+{"connection": "FLEX", "owner": "ATE_RESULTS", "table_name": "TBL_FAMILY_SCHEMA", "status": "gathered", "exact_row_count": 89, "last_analyzed": "2026-10-13 12:13:05"}
+{"connection": "FLEX", "owner": "ATE_RESULTS", "table_name": "TBL_STATION_BLOCK", "status": "gathered", "exact_row_count": 3457, "last_analyzed": "2026-10-13 12:13:05"}
+{"connection": "FLEX", "owner": "ATE_RESULTS", "table_name": "TBL_WARRANTY", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:13:05"}
+{"connection": "FLEX", "owner": "ATE_RESULTS", "table_name": "TEMP_TRANSFER_SITE_UUT_ATTRIBUTES", "status": "gathered", "exact_row_count": 14880690, "last_analyzed": "2026-10-13 12:13:05"}
+{"connection": "FLEX", "owner": "ATE_RESULTS", "table_name": "TRANSFER_PRODUCTS", "status": "gathered", "exact_row_count": 112, "last_analyzed": "2026-10-13 12:17:44"}
+{"connection": "FLEX", "owner": "ATE_RESULTS", "table_name": "TRANSFER_PRODUCTS_LOG", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:17:44"}
+{"connection": "FLEX", "owner": "ATE_RESULTS", "table_name": "TRANSFER_PRODUCTS_QUEUE", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:17:44"}
+{"connection": "FLEX", "owner": "ATE_RESULTS", "table_name": "UUT_LINE_OF_BUSINESS", "status": "gathered", "exact_row_count": 4774, "last_analyzed": "2026-10-13 12:17:44"}
+{"connection": "FLEX", "owner": "ATE_RESULTS", "table_name": "UUT_LINE_TEMP", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ATE_RESULTS", "table_name": "UUT_TYPES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "BUL2_SYSTEM", "table_name": "LIMITS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "BUL2_SYSTEM", "table_name": "MEAS_IVI_SINGLEPOINT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "BUL2_SYSTEM", "table_name": "MEAS_IVI_WAVE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "BUL2_SYSTEM", "table_name": "MEAS_IVI_WAVEPAIR", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "BUL2_SYSTEM", "table_name": "MEAS_NUMERICLIMIT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "BUL2_SYSTEM", "table_name": "MESSAGE_TYPE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "BUL2_SYSTEM", "table_name": "SETTING_NUMERIC_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "BUL2_SYSTEM", "table_name": "SETTING_STRING_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "BUL2_SYSTEM", "table_name": "STATION_ADDRESSES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "BUL2_SYSTEM", "table_name": "STATION_PARAMS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "BUL2_SYSTEM", "table_name": "STEP_CALLEXE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "BUL2_SYSTEM", "table_name": "STEP_MSGPOPUP", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "BUL2_SYSTEM", "table_name": "STEP_PASSFAIL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "BUL2_SYSTEM", "table_name": "STEP_PROPERTYLOADER", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "BUL2_SYSTEM", "table_name": "STEP_RESULT", "status": "gathered", "exact_row_count": 43374, "last_analyzed": "2026-10-13 12:17:45"}
+{"connection": "FLEX", "owner": "BUL2_SYSTEM", "table_name": "STEP_SEQCALL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "BUL2_SYSTEM", "table_name": "STEP_STRINGVALUE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "BUL2_SYSTEM", "table_name": "UUT_CONFIGURATIONS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "BUL2_SYSTEM", "table_name": "UUT_RESULT", "status": "gathered", "exact_row_count": 656, "last_analyzed": "2026-10-13 12:17:46"}
+{"connection": "FLEX", "owner": "BUL2_SYSTEM", "table_name": "UUT_TESTS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "BUL2_SYSTEM", "table_name": "UUT_TYPES", "status": "gathered", "exact_row_count": 4, "last_analyzed": "2026-10-13 12:17:46"}
+{"connection": "FLEX", "owner": "CANS", "table_name": "LIMITS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS", "table_name": "MEAS_IVI_SINGLEPOINT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS", "table_name": "MEAS_IVI_WAVE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS", "table_name": "MEAS_IVI_WAVEPAIR", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS", "table_name": "MEAS_NUMERICLIMIT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS", "table_name": "MESSAGE_TYPE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS", "table_name": "SETTING_NUMERIC_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS", "table_name": "SETTING_STRING_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS", "table_name": "STATION_ADDRESSES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS", "table_name": "STATION_PARAMS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS", "table_name": "STEP_CALLEXE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS", "table_name": "STEP_MSGPOPUP", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS", "table_name": "STEP_PASSFAIL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS", "table_name": "STEP_PROPERTYLOADER", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS", "table_name": "STEP_RESULT", "status": "gathered", "exact_row_count": 116421, "last_analyzed": "2026-10-13 12:17:47"}
+{"connection": "FLEX", "owner": "CANS", "table_name": "STEP_SEQCALL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS", "table_name": "STEP_STRINGVALUE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS", "table_name": "UUT_CONFIGURATIONS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS", "table_name": "UUT_RESULT", "status": "gathered", "exact_row_count": 1787, "last_analyzed": "2026-10-13 12:17:49"}
+{"connection": "FLEX", "owner": "CANS", "table_name": "UUT_TESTS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS", "table_name": "UUT_TYPES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS_SYSTEM", "table_name": "LIMITS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS_SYSTEM", "table_name": "MEAS_IVI_SINGLEPOINT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS_SYSTEM", "table_name": "MEAS_IVI_WAVE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS_SYSTEM", "table_name": "MEAS_IVI_WAVEPAIR", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS_SYSTEM", "table_name": "MEAS_NUMERICLIMIT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS_SYSTEM", "table_name": "MESSAGE_TYPE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS_SYSTEM", "table_name": "SETTING_NUMERIC_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS_SYSTEM", "table_name": "SETTING_STRING_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS_SYSTEM", "table_name": "STATION_ADDRESSES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS_SYSTEM", "table_name": "STATION_PARAMS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS_SYSTEM", "table_name": "STEP_CALLEXE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS_SYSTEM", "table_name": "STEP_MSGPOPUP", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS_SYSTEM", "table_name": "STEP_PASSFAIL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS_SYSTEM", "table_name": "STEP_PROPERTYLOADER", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS_SYSTEM", "table_name": "STEP_RESULT", "status": "gathered", "exact_row_count": 43116, "last_analyzed": "2026-10-13 12:17:50"}
+{"connection": "FLEX", "owner": "CANS_SYSTEM", "table_name": "STEP_SEQCALL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS_SYSTEM", "table_name": "STEP_STRINGVALUE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS_SYSTEM", "table_name": "UUT_CONFIGURATIONS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS_SYSTEM", "table_name": "UUT_RESULT", "status": "gathered", "exact_row_count": 2171, "last_analyzed": "2026-10-13 12:17:51"}
+{"connection": "FLEX", "owner": "CANS_SYSTEM", "table_name": "UUT_TESTS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CANS_SYSTEM", "table_name": "UUT_TYPES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CM_DB_UPDATE", "table_name": "LIMITS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CM_DB_UPDATE", "table_name": "MEAS_IVI_SINGLEPOINT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CM_DB_UPDATE", "table_name": "MEAS_IVI_WAVE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CM_DB_UPDATE", "table_name": "MEAS_IVI_WAVEPAIR", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CM_DB_UPDATE", "table_name": "MEAS_NUMERICLIMIT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CM_DB_UPDATE", "table_name": "MESSAGE_TYPE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CM_DB_UPDATE", "table_name": "SETTING_NUMERIC_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CM_DB_UPDATE", "table_name": "SETTING_STRING_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CM_DB_UPDATE", "table_name": "STATION_ADDRESSES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CM_DB_UPDATE", "table_name": "STEP_CALLEXE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CM_DB_UPDATE", "table_name": "STEP_MSGPOPUP", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CM_DB_UPDATE", "table_name": "STEP_PASSFAIL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CM_DB_UPDATE", "table_name": "STEP_PROPERTYLOADER", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CM_DB_UPDATE", "table_name": "STEP_RESULT", "status": "gathered", "exact_row_count": 11, "last_analyzed": "2026-10-13 12:17:52"}
+{"connection": "FLEX", "owner": "CM_DB_UPDATE", "table_name": "STEP_SEQCALL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CM_DB_UPDATE", "table_name": "STEP_STRINGVALUE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CM_DB_UPDATE", "table_name": "UUT_CONFIGURATIONS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CM_DB_UPDATE", "table_name": "UUT_RESULT", "status": "gathered", "exact_row_count": 1, "last_analyzed": "2026-10-13 12:17:52"}
+{"connection": "FLEX", "owner": "CM_DB_UPDATE", "table_name": "UUT_TESTS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CM_DB_UPDATE", "table_name": "UUT_TYPES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "CORONYS_LOGS", "table_name": "CORONYS_RESULTS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "LIMITS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "LIMITS_NEW", "status": "gathered", "exact_row_count": 28, "last_analyzed": "2026-10-13 12:17:52"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "MEAS_IVI_SINGLEPOINT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "MEAS_IVI_SINGLEPOINT_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:17:52"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "MEAS_IVI_WAVE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "MEAS_IVI_WAVEPAIR", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "MEAS_IVI_WAVEPAIR_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:17:52"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "MEAS_IVI_WAVE_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:17:52"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "MEAS_NUMERICLIMIT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "MEAS_NUMERICLIMIT_NEW", "status": "gathered", "exact_row_count": 1918166, "last_analyzed": "2026-10-13 12:17:52"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "MESSAGE_TYPE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "MESSAGE_TYPE_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:18:05"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "SETTING_NUMERIC_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "SETTING_NUMERIC_ARRAY_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:18:05"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "SETTING_STRING_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "SETTING_STRING_ARRAY_NEW", "status": "gathered", "exact_row_count": 24, "last_analyzed": "2026-10-13 12:18:05"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "STATION_ADDRESSES", "status": "gathered", "exact_row_count": 2, "last_analyzed": "2026-10-13 12:18:05"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "STATION_ADDRESSES_NEW", "status": "gathered", "exact_row_count": 2, "last_analyzed": "2026-10-13 12:18:05"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "STEP_CALLEXE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "STEP_CALLEXE_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:18:06"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "STEP_MSGPOPUP", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "STEP_MSGPOPUP_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:18:06"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "STEP_PASSFAIL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "STEP_PASSFAIL_NEW", "status": "gathered", "exact_row_count": 62934, "last_analyzed": "2026-10-13 12:18:06"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "STEP_PROPERTYLOADER", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "STEP_PROPERTYLOADER_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:18:06"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "STEP_RESULT", "status": "gathered", "exact_row_count": 4803747, "last_analyzed": "2026-10-13 12:18:06"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "STEP_RESULT_KEEP", "status": "gathered", "exact_row_count": 11743858, "last_analyzed": "2026-10-13 12:19:04"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "STEP_SEQCALL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "STEP_SEQCALL_NEW", "status": "gathered", "exact_row_count": 668155, "last_analyzed": "2026-10-13 12:21:25"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "STEP_STRINGVALUE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "STEP_STRINGVALUE_NEW", "status": "gathered", "exact_row_count": 210524, "last_analyzed": "2026-10-13 12:21:29"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "UUT_CONFIGURATIONS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "UUT_CONFIGURATIONS_NEW", "status": "gathered", "exact_row_count": 2, "last_analyzed": "2026-10-13 12:21:31"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "UUT_RESULT", "status": "gathered", "exact_row_count": 28767, "last_analyzed": "2026-10-13 12:21:31"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "UUT_RESULT_KEEP", "status": "gathered", "exact_row_count": 70076, "last_analyzed": "2026-10-13 12:21:33"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "UUT_TESTS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "UUT_TESTS_NEW", "status": "gathered", "exact_row_count": 15, "last_analyzed": "2026-10-13 12:21:36"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "UUT_TYPES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "DLCK", "table_name": "UUT_TYPES_NEW", "status": "gathered", "exact_row_count": 2, "last_analyzed": "2026-10-13 12:21:36"}
+{"connection": "FLEX", "owner": "ENG_REPORTS", "table_name": "DB_MERGE_HISTORY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ENG_REPORTS", "table_name": "SITES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ENG_REPORTS", "table_name": "TEMP_RESULT_TABLE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ENG_REPORTS", "table_name": "TEMP_STEP_TABLE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EP", "table_name": "LIMITS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EP", "table_name": "MEAS_IVI_SINGLEPOINT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EP", "table_name": "MEAS_IVI_WAVE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EP", "table_name": "MEAS_IVI_WAVEPAIR", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EP", "table_name": "MEAS_NUMERICLIMIT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EP", "table_name": "MESSAGE_TYPE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EP", "table_name": "SETTING_NUMERIC_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EP", "table_name": "SETTING_STRING_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EP", "table_name": "STATION_ADDRESSES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EP", "table_name": "STEP_CALLEXE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EP", "table_name": "STEP_MSGPOPUP", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EP", "table_name": "STEP_PASSFAIL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EP", "table_name": "STEP_PROPERTYLOADER", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EP", "table_name": "STEP_RESULT", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:21:37"}
+{"connection": "FLEX", "owner": "EP", "table_name": "STEP_SEQCALL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EP", "table_name": "STEP_STRINGVALUE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EP", "table_name": "UUT_CONFIGURATIONS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EP", "table_name": "UUT_RESULT", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 12:21:37"}
+{"connection": "FLEX", "owner": "EP", "table_name": "UUT_TESTS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EP", "table_name": "UUT_TYPES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPA", "table_name": "LIMITS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPA", "table_name": "MEAS_IVI_SINGLEPOINT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPA", "table_name": "MEAS_IVI_WAVE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPA", "table_name": "MEAS_IVI_WAVEPAIR", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPA", "table_name": "MEAS_NUMERICLIMIT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPA", "table_name": "MESSAGE_TYPE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPA", "table_name": "SETTING_NUMERIC_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPA", "table_name": "SETTING_STRING_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPA", "table_name": "STATION_ADDRESSES", "status": "gathered", "exact_row_count": 3, "last_analyzed": "2026-10-13 12:21:38"}
+{"connection": "FLEX", "owner": "EPA", "table_name": "STEP_CALLEXE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPA", "table_name": "STEP_MSGPOPUP", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPA", "table_name": "STEP_PASSFAIL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPA", "table_name": "STEP_PROPERTYLOADER", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPA", "table_name": "STEP_RESULT", "status": "gathered", "exact_row_count": 113082000, "last_analyzed": "2026-10-13 12:21:38"}
+{"connection": "FLEX", "owner": "EPA", "table_name": "STEP_SEQCALL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPA", "table_name": "STEP_STRINGVALUE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPA", "table_name": "UUT_CONFIGURATIONS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPA", "table_name": "UUT_RESULT", "status": "gathered", "exact_row_count": 688810, "last_analyzed": "2026-10-13 12:44:06"}
+{"connection": "FLEX", "owner": "EPA", "table_name": "UUT_TESTS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPA", "table_name": "UUT_TYPES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPF", "table_name": "LIMITS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPF", "table_name": "MEAS_IVI_SINGLEPOINT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPF", "table_name": "MEAS_IVI_WAVE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPF", "table_name": "MEAS_IVI_WAVEPAIR", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPF", "table_name": "MEAS_NUMERICLIMIT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPF", "table_name": "MESSAGE_TYPE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPF", "table_name": "SETTING_NUMERIC_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPF", "table_name": "SETTING_STRING_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPF", "table_name": "STATION_ADDRESSES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPF", "table_name": "STEP_CALLEXE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPF", "table_name": "STEP_MSGPOPUP", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPF", "table_name": "STEP_PASSFAIL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPF", "table_name": "STEP_PROPERTYLOADER", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPF", "table_name": "STEP_RESULT", "status": "gathered", "exact_row_count": 7969, "last_analyzed": "2026-10-13 12:44:31"}
+{"connection": "FLEX", "owner": "EPF", "table_name": "STEP_SEQCALL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPF", "table_name": "STEP_STRINGVALUE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPF", "table_name": "UUT_CONFIGURATIONS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPF", "table_name": "UUT_RESULT", "status": "gathered", "exact_row_count": 188, "last_analyzed": "2026-10-13 12:44:31"}
+{"connection": "FLEX", "owner": "EPF", "table_name": "UUT_TESTS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPF", "table_name": "UUT_TYPES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPPH", "table_name": "LIMITS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPPH", "table_name": "MEAS_IVI_SINGLEPOINT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPPH", "table_name": "MEAS_IVI_WAVE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPPH", "table_name": "MEAS_IVI_WAVEPAIR", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPPH", "table_name": "MEAS_NUMERICLIMIT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPPH", "table_name": "MESSAGE_TYPE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPPH", "table_name": "SETTING_NUMERIC_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPPH", "table_name": "SETTING_STRING_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPPH", "table_name": "STATION_ADDRESSES", "status": "gathered", "exact_row_count": 1, "last_analyzed": "2026-10-13 12:44:32"}
+{"connection": "FLEX", "owner": "EPPH", "table_name": "STEP_CALLEXE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPPH", "table_name": "STEP_MSGPOPUP", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPPH", "table_name": "STEP_PASSFAIL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPPH", "table_name": "STEP_PROPERTYLOADER", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPPH", "table_name": "STEP_RESULT", "status": "gathered", "exact_row_count": 37854056, "last_analyzed": "2026-10-13 12:44:32"}
+{"connection": "FLEX", "owner": "EPPH", "table_name": "STEP_SEQCALL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPPH", "table_name": "STEP_STRINGVALUE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPPH", "table_name": "UUT_CONFIGURATIONS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPPH", "table_name": "UUT_RESULT", "status": "gathered", "exact_row_count": 153782, "last_analyzed": "2026-10-13 12:52:37"}
+{"connection": "FLEX", "owner": "EPPH", "table_name": "UUT_TESTS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EPPH", "table_name": "UUT_TYPES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "EREPORTS", "table_name": "HIERARCHY_YIELD_REPORT", "status": "gathered", "exact_row_count": 39335717, "last_analyzed": "2026-10-13 12:52:44"}
+{"connection": "FLEX", "owner": "EREPORTS", "table_name": "HIERARCHY_YIELD_REPORT_STEPS", "status": "gathered", "exact_row_count": 2473986, "last_analyzed": "2026-10-13 12:58:13"}
+{"connection": "FLEX", "owner": "EREPORTS", "table_name": "LISTPARENT", "status": "gathered", "exact_row_count": 1, "last_analyzed": "2026-10-13 12:58:33"}
+{"connection": "FLEX", "owner": "EREPORTS", "table_name": "TEST_STEPS", "status": "gathered", "exact_row_count": 258435, "last_analyzed": "2026-10-13 12:58:33"}
+{"connection": "FLEX", "owner": "EREPORTS", "table_name": "TRY_1", "status": "gathered", "exact_row_count": 49345, "last_analyzed": "2026-10-13 12:58:36"}
+{"connection": "FLEX", "owner": "EREPORTS", "table_name": "YIELD_REPORT_PARAMETERS", "status": "gathered", "exact_row_count": 11262, "last_analyzed": "2026-10-13 12:58:36"}
+{"connection": "FLEX", "owner": "EREPORTS", "table_name": "YIELD_REPORT_SCHEDULED_PARAMETERS", "status": "gathered", "exact_row_count": 24, "last_analyzed": "2026-10-13 12:58:37"}
+{"connection": "FLEX", "owner": "EREPORTS", "table_name": "YIELD_STATISTICS_REPORT", "status": "gathered", "exact_row_count": 5826247, "last_analyzed": "2026-10-13 12:58:37"}
+{"connection": "FLEX", "owner": "EREPORTS", "table_name": "YIELD_SUM_REPORT", "status": "gathered", "exact_row_count": 3098741, "last_analyzed": "2026-10-13 13:01:42"}
+{"connection": "FLEX", "owner": "EREPORTS", "table_name": "YIELD_TEST_STG", "status": "gathered", "exact_row_count": 1375373, "last_analyzed": "2026-10-13 13:02:16"}
+{"connection": "FLEX", "owner": "ES700OPDI", "table_name": "LIMITS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI", "table_name": "MEAS_IVI_SINGLEPOINT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI", "table_name": "MEAS_IVI_WAVE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI", "table_name": "MEAS_IVI_WAVEPAIR", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI", "table_name": "MEAS_NUMERICLIMIT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI", "table_name": "MESSAGE_TYPE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI", "table_name": "SETTING_NUMERIC_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI", "table_name": "SETTING_STRING_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI", "table_name": "STATION_ADDRESSES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI", "table_name": "STEP_CALLEXE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI", "table_name": "STEP_MSGPOPUP", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI", "table_name": "STEP_PASSFAIL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI", "table_name": "STEP_PROPERTYLOADER", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI", "table_name": "STEP_RESULT", "status": "gathered", "exact_row_count": 41742422, "last_analyzed": "2026-10-13 13:02:29"}
+{"connection": "FLEX", "owner": "ES700OPDI", "table_name": "STEP_SEQCALL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI", "table_name": "STEP_STRINGVALUE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI", "table_name": "UUT_CONFIGURATIONS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI", "table_name": "UUT_RESULT", "status": "gathered", "exact_row_count": 443833, "last_analyzed": "2026-10-13 13:10:55"}
+{"connection": "FLEX", "owner": "ES700OPDI", "table_name": "UUT_TESTS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI", "table_name": "UUT_TYPES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI_TEST", "table_name": "LIMITS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI_TEST", "table_name": "MEAS_IVI_SINGLEPOINT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI_TEST", "table_name": "MEAS_IVI_WAVE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI_TEST", "table_name": "MEAS_IVI_WAVEPAIR", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI_TEST", "table_name": "MEAS_NUMERICLIMIT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI_TEST", "table_name": "MESSAGE_TYPE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI_TEST", "table_name": "SETTING_NUMERIC_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI_TEST", "table_name": "SETTING_STRING_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI_TEST", "table_name": "STATION_ADDRESSES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI_TEST", "table_name": "STEP_CALLEXE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI_TEST", "table_name": "STEP_MSGPOPUP", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI_TEST", "table_name": "STEP_PASSFAIL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI_TEST", "table_name": "STEP_PROPERTYLOADER", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI_TEST", "table_name": "STEP_RESULT", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 13:11:10"}
+{"connection": "FLEX", "owner": "ES700OPDI_TEST", "table_name": "STEP_SEQCALL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI_TEST", "table_name": "STEP_STRINGVALUE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI_TEST", "table_name": "UUT_CONFIGURATIONS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI_TEST", "table_name": "UUT_RESULT", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 13:11:10"}
+{"connection": "FLEX", "owner": "ES700OPDI_TEST", "table_name": "UUT_TESTS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700OPDI_TEST", "table_name": "UUT_TYPES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700S5", "table_name": "LIMITS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700S5", "table_name": "MEAS_IVI_SINGLEPOINT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700S5", "table_name": "MEAS_IVI_WAVE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700S5", "table_name": "MEAS_IVI_WAVEPAIR", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700S5", "table_name": "MEAS_NUMERICLIMIT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700S5", "table_name": "MESSAGE_TYPE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700S5", "table_name": "SETTING_NUMERIC_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700S5", "table_name": "SETTING_STRING_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700S5", "table_name": "STATION_ADDRESSES", "status": "gathered", "exact_row_count": 1, "last_analyzed": "2026-10-13 13:11:11"}
+{"connection": "FLEX", "owner": "ES700S5", "table_name": "STEP_CALLEXE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700S5", "table_name": "STEP_MSGPOPUP", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700S5", "table_name": "STEP_PASSFAIL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700S5", "table_name": "STEP_PROPERTYLOADER", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700S5", "table_name": "STEP_RESULT", "status": "gathered", "exact_row_count": 402589, "last_analyzed": "2026-10-13 13:11:11"}
+{"connection": "FLEX", "owner": "ES700S5", "table_name": "STEP_SEQCALL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700S5", "table_name": "STEP_STRINGVALUE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700S5", "table_name": "UUT_CONFIGURATIONS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700S5", "table_name": "UUT_RESULT", "status": "gathered", "exact_row_count": 2516, "last_analyzed": "2026-10-13 13:11:18"}
+{"connection": "FLEX", "owner": "ES700S5", "table_name": "UUT_TESTS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES700S5", "table_name": "UUT_TYPES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES901BUL", "table_name": "LIMITS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES901BUL", "table_name": "MEAS_IVI_SINGLEPOINT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES901BUL", "table_name": "MEAS_IVI_WAVE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES901BUL", "table_name": "MEAS_IVI_WAVEPAIR", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES901BUL", "table_name": "MEAS_NUMERICLIMIT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES901BUL", "table_name": "MESSAGE_TYPE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES901BUL", "table_name": "SETTING_NUMERIC_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES901BUL", "table_name": "SETTING_STRING_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES901BUL", "table_name": "STATION_ADDRESSES", "status": "gathered", "exact_row_count": 1, "last_analyzed": "2026-10-13 13:11:19"}
+{"connection": "FLEX", "owner": "ES901BUL", "table_name": "STEP_CALLEXE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES901BUL", "table_name": "STEP_MSGPOPUP", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES901BUL", "table_name": "STEP_PASSFAIL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES901BUL", "table_name": "STEP_PROPERTYLOADER", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES901BUL", "table_name": "STEP_RESULT", "status": "gathered", "exact_row_count": 330588, "last_analyzed": "2026-10-13 13:11:19"}
+{"connection": "FLEX", "owner": "ES901BUL", "table_name": "STEP_SEQCALL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES901BUL", "table_name": "STEP_STRINGVALUE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES901BUL", "table_name": "UUT_CONFIGURATIONS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES901BUL", "table_name": "UUT_RESULT", "status": "gathered", "exact_row_count": 2617, "last_analyzed": "2026-10-13 13:11:24"}
+{"connection": "FLEX", "owner": "ES901BUL", "table_name": "UUT_TESTS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ES901BUL", "table_name": "UUT_TYPES", "status": "gathered", "exact_row_count": 5, "last_analyzed": "2026-10-13 13:11:24"}
+{"connection": "FLEX", "owner": "ESSENCE_MANAGER", "table_name": "APPLICATION_SCHEMA", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ESSENCE_MANAGER", "table_name": "AUTOMATION_ENGINEER_TABLES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ESSENCE_MANAGER", "table_name": "DEVELOPER", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ESSENCE_MANAGER", "table_name": "ROLE_PRIVS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "ESSENCE_MANAGER", "table_name": "SITE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FACTORY_RESTORE", "table_name": "LIMITS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FACTORY_RESTORE", "table_name": "MEAS_IVI_SINGLEPOINT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FACTORY_RESTORE", "table_name": "MEAS_IVI_WAVE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FACTORY_RESTORE", "table_name": "MEAS_IVI_WAVEPAIR", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FACTORY_RESTORE", "table_name": "MEAS_NUMERICLIMIT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FACTORY_RESTORE", "table_name": "MESSAGE_TYPE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FACTORY_RESTORE", "table_name": "SETTING_NUMERIC_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FACTORY_RESTORE", "table_name": "SETTING_STRING_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FACTORY_RESTORE", "table_name": "SETTING_STRING_ARRAY_BEFORE_PH20", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FACTORY_RESTORE", "table_name": "STATION_ADDRESSES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FACTORY_RESTORE", "table_name": "STATION_PARAMS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FACTORY_RESTORE", "table_name": "STEP_CALLEXE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FACTORY_RESTORE", "table_name": "STEP_MSGPOPUP", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FACTORY_RESTORE", "table_name": "STEP_PASSFAIL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FACTORY_RESTORE", "table_name": "STEP_PROPERTYLOADER", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FACTORY_RESTORE", "table_name": "STEP_RESULT", "status": "gathered", "exact_row_count": 8055, "last_analyzed": "2026-10-13 13:11:25"}
+{"connection": "FLEX", "owner": "FACTORY_RESTORE", "table_name": "STEP_SEQCALL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FACTORY_RESTORE", "table_name": "STEP_STRINGVALUE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FACTORY_RESTORE", "table_name": "UUT_CONFIGURATIONS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FACTORY_RESTORE", "table_name": "UUT_RESULT", "status": "gathered", "exact_row_count": 95, "last_analyzed": "2026-10-13 13:11:26"}
+{"connection": "FLEX", "owner": "FACTORY_RESTORE", "table_name": "UUT_TESTS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FACTORY_RESTORE", "table_name": "UUT_TYPES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "LIMITS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "LIMITS_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 13:11:26"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "MEAS_IVI_SINGLEPOINT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "MEAS_IVI_SINGLEPOINT_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 13:11:26"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "MEAS_IVI_WAVE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "MEAS_IVI_WAVEPAIR", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "MEAS_IVI_WAVEPAIR_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 13:11:26"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "MEAS_IVI_WAVE_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 13:11:26"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "MEAS_NUMERICLIMIT", "status": "gathered", "exact_row_count": 245662359, "last_analyzed": "2026-10-13 13:41:02"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "MEAS_NUMERICLIMIT_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 14:04:00"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "MESSAGE_TYPE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "MESSAGE_TYPE_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 14:04:00"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "MV_TEST", "status": "gathered", "exact_row_count": 1532635, "last_analyzed": "2026-10-13 14:04:00"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "MV_TEST_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 14:04:08"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "SETTING_NUMERIC_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "SETTING_NUMERIC_ARRAY_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 14:04:08"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "SETTING_STRING_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "SETTING_STRING_ARRAY_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 14:04:08"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "STATION_ADDRESSES", "status": "gathered", "exact_row_count": 6, "last_analyzed": "2026-10-13 14:04:08"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "STATION_ADDRESSES_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 14:04:08"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "STEP_CALLEXE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "STEP_CALLEXE_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 14:04:08"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "STEP_MSGPOPUP", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "STEP_MSGPOPUP_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 14:04:08"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "STEP_PASSFAIL", "status": "gathered", "exact_row_count": 1560466, "last_analyzed": "2026-10-13 14:04:08"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "STEP_PASSFAIL_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 14:04:14"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "STEP_PROPERTYLOADER", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "STEP_PROPERTYLOADER_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 14:04:14"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "STEP_RESULT", "status": "gathered", "exact_row_count": 247239988, "last_analyzed": "2026-10-13 14:04:14"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "STEP_RESULT_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:18:03"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "STEP_SEQCALL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "STEP_SEQCALL_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:18:03"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "STEP_STRINGVALUE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "STEP_STRINGVALUE_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:18:03"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "UUT_CONFIGURATIONS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "UUT_CONFIGURATIONS_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:18:03"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "UUT_RESULT", "status": "gathered", "exact_row_count": 1715572, "last_analyzed": "2026-10-13 15:18:03"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "UUT_RESULT_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:19:04"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "UUT_TESTS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "UUT_TESTS_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:19:04"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "UUT_TYPES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOG", "table_name": "UUT_TYPES_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:19:04"}
+{"connection": "FLEX", "owner": "FOG_STG", "table_name": "LIMITS", "status": "gathered", "exact_row_count": 48, "last_analyzed": "2026-10-13 15:19:04"}
+{"connection": "FLEX", "owner": "FOG_STG", "table_name": "MEAS_IVI_SINGLEPOINT", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:19:04"}
+{"connection": "FLEX", "owner": "FOG_STG", "table_name": "MEAS_IVI_WAVE", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:19:04"}
+{"connection": "FLEX", "owner": "FOG_STG", "table_name": "MEAS_IVI_WAVEPAIR", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:19:05"}
+{"connection": "FLEX", "owner": "FOG_STG", "table_name": "MEAS_NUMERICLIMIT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOG_STG", "table_name": "MESSAGE_TYPE", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:19:05"}
+{"connection": "FLEX", "owner": "FOG_STG", "table_name": "SETTING_NUMERIC_ARRAY", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:19:05"}
+{"connection": "FLEX", "owner": "FOG_STG", "table_name": "SETTING_STRING_ARRAY", "status": "gathered", "exact_row_count": 33, "last_analyzed": "2026-10-13 15:19:05"}
+{"connection": "FLEX", "owner": "FOG_STG", "table_name": "STATION_ADDRESSES", "status": "gathered", "exact_row_count": 5, "last_analyzed": "2026-10-13 15:19:05"}
+{"connection": "FLEX", "owner": "FOG_STG", "table_name": "STEP_CALLEXE", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:19:05"}
+{"connection": "FLEX", "owner": "FOG_STG", "table_name": "STEP_MSGPOPUP", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOG_STG", "table_name": "STEP_PASSFAIL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOG_STG", "table_name": "STEP_PROPERTYLOADER", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:19:05"}
+{"connection": "FLEX", "owner": "FOG_STG", "table_name": "STEP_RESULT", "status": "gathered", "exact_row_count": 29019063, "last_analyzed": "2026-10-13 15:19:05"}
+{"connection": "FLEX", "owner": "FOG_STG", "table_name": "STEP_SEQCALL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOG_STG", "table_name": "STEP_STRINGVALUE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOG_STG", "table_name": "TEST_STEPS", "status": "gathered", "exact_row_count": 322, "last_analyzed": "2026-10-13 15:25:11"}
+{"connection": "FLEX", "owner": "FOG_STG", "table_name": "UUT_CONFIGURATIONS", "status": "gathered", "exact_row_count": 4, "last_analyzed": "2026-10-13 15:25:11"}
+{"connection": "FLEX", "owner": "FOG_STG", "table_name": "UUT_RESULT", "status": "gathered", "exact_row_count": 141732, "last_analyzed": "2026-10-13 15:25:11"}
+{"connection": "FLEX", "owner": "FOG_STG", "table_name": "UUT_TESTS", "status": "gathered", "exact_row_count": 15, "last_analyzed": "2026-10-13 15:25:15"}
+{"connection": "FLEX", "owner": "FOG_STG", "table_name": "UUT_TYPES", "status": "gathered", "exact_row_count": 4, "last_analyzed": "2026-10-13 15:25:16"}
+{"connection": "FLEX", "owner": "FOTA", "table_name": "LIMITS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOTA", "table_name": "MEAS_IVI_SINGLEPOINT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOTA", "table_name": "MEAS_IVI_WAVE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOTA", "table_name": "MEAS_IVI_WAVEPAIR", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOTA", "table_name": "MEAS_NUMERICLIMIT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOTA", "table_name": "MESSAGE_TYPE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOTA", "table_name": "SETTING_NUMERIC_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOTA", "table_name": "SETTING_STRING_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOTA", "table_name": "SIM_CARDS", "status": "gathered", "exact_row_count": 16, "last_analyzed": "2026-10-13 15:25:16"}
+{"connection": "FLEX", "owner": "FOTA", "table_name": "STATION_ADDRESSES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOTA", "table_name": "STEP_CALLEXE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOTA", "table_name": "STEP_MSGPOPUP", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOTA", "table_name": "STEP_PASSFAIL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOTA", "table_name": "STEP_PROPERTYLOADER", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOTA", "table_name": "STEP_RESULT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOTA", "table_name": "STEP_SEQCALL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOTA", "table_name": "STEP_STRINGVALUE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOTA", "table_name": "UUT_CONFIGURATIONS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOTA", "table_name": "UUT_RESULT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOTA", "table_name": "UUT_TESTS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FOTA", "table_name": "UUT_TYPES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "LIMITS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "LIMITS_NEW", "status": "gathered", "exact_row_count": 31, "last_analyzed": "2026-10-13 15:25:17"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "MEAS_IVI_SINGLEPOINT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "MEAS_IVI_SINGLEPOINT_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:25:17"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "MEAS_IVI_WAVE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "MEAS_IVI_WAVEPAIR", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "MEAS_IVI_WAVEPAIR_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:25:17"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "MEAS_IVI_WAVE_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:25:17"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "MEAS_NUMERICLIMIT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "MEAS_NUMERICLIMIT_NEW", "status": "gathered", "exact_row_count": 129, "last_analyzed": "2026-10-13 15:25:17"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "MESSAGE_TYPE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "MESSAGE_TYPE_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:25:17"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "SETTING_NUMERIC_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "SETTING_NUMERIC_ARRAY_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:25:17"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "SETTING_STRING_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "SETTING_STRING_ARRAY_NEW", "status": "gathered", "exact_row_count": 5, "last_analyzed": "2026-10-13 15:25:17"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "STATION_ADDRESSES", "status": "gathered", "exact_row_count": 1, "last_analyzed": "2026-10-13 15:25:18"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "STATION_ADDRESSES_NEW", "status": "gathered", "exact_row_count": 1, "last_analyzed": "2026-10-13 15:25:18"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "STEP_CALLEXE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "STEP_CALLEXE_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:25:18"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "STEP_MSGPOPUP", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "STEP_MSGPOPUP_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:25:18"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "STEP_PASSFAIL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "STEP_PASSFAIL_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:25:18"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "STEP_PROPERTYLOADER", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "STEP_PROPERTYLOADER_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:25:18"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "STEP_RESULT", "status": "gathered", "exact_row_count": 1620884, "last_analyzed": "2026-10-13 15:25:18"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "STEP_RESULT_NEW", "status": "gathered", "exact_row_count": 207, "last_analyzed": "2026-10-13 15:25:45"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "STEP_SEQCALL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "STEP_SEQCALL_NEW", "status": "gathered", "exact_row_count": 60, "last_analyzed": "2026-10-13 15:25:45"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "STEP_STRINGVALUE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "STEP_STRINGVALUE_NEW", "status": "gathered", "exact_row_count": 18, "last_analyzed": "2026-10-13 15:25:45"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "UUT_CONFIGURATIONS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "UUT_CONFIGURATIONS_NEW", "status": "gathered", "exact_row_count": 3, "last_analyzed": "2026-10-13 15:25:45"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "UUT_RESULT", "status": "gathered", "exact_row_count": 11366, "last_analyzed": "2026-10-13 15:25:45"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "UUT_RESULT_NEW", "status": "gathered", "exact_row_count": 8, "last_analyzed": "2026-10-13 15:25:46"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "UUT_TESTS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "UUT_TESTS_NEW", "status": "gathered", "exact_row_count": 16, "last_analyzed": "2026-10-13 15:25:46"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "UUT_TYPES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSCB", "table_name": "UUT_TYPES_NEW", "status": "gathered", "exact_row_count": 8, "last_analyzed": "2026-10-13 15:25:46"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "LIMITS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "LIMITS_NEW", "status": "gathered", "exact_row_count": 128, "last_analyzed": "2026-10-13 15:25:46"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "MEAS_IVI_SINGLEPOINT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "MEAS_IVI_SINGLEPOINT_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:25:46"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "MEAS_IVI_WAVE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "MEAS_IVI_WAVEPAIR", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "MEAS_IVI_WAVEPAIR_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:25:47"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "MEAS_IVI_WAVE_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:25:47"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "MEAS_NUMERICLIMIT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "MEAS_NUMERICLIMIT_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:25:47"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "MESSAGE_TYPE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "MESSAGE_TYPE_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:25:47"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "SETTING_NUMERIC_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "SETTING_NUMERIC_ARRAY_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:25:47"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "SETTING_STRING_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "SETTING_STRING_ARRAY_NEW", "status": "gathered", "exact_row_count": 158, "last_analyzed": "2026-10-13 15:25:47"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "STATION_ADDRESSES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "STATION_ADDRESSES_NEW", "status": "gathered", "exact_row_count": 1, "last_analyzed": "2026-10-13 15:25:47"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "STATION_PARAMS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "STATION_PARAMS_NEW", "status": "gathered", "exact_row_count": 6, "last_analyzed": "2026-10-13 15:25:47"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "STEP_CALLEXE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "STEP_CALLEXE_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:25:47"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "STEP_MSGPOPUP", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "STEP_MSGPOPUP_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:25:48"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "STEP_PASSFAIL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "STEP_PASSFAIL_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:25:48"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "STEP_PROPERTYLOADER", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "STEP_PROPERTYLOADER_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:25:48"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "STEP_RESULT", "status": "gathered", "exact_row_count": 5528673, "last_analyzed": "2026-10-13 15:25:48"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "STEP_RESULT_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:27:00"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "STEP_SEQCALL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "STEP_SEQCALL_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:27:00"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "STEP_STRINGVALUE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "STEP_STRINGVALUE_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:27:00"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "UUT_CONFIGURATIONS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "UUT_CONFIGURATIONS_NEW", "status": "gathered", "exact_row_count": 7, "last_analyzed": "2026-10-13 15:27:01"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "UUT_RESULT", "status": "gathered", "exact_row_count": 17069, "last_analyzed": "2026-10-13 15:27:01"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "UUT_RESULT_NEW", "status": "gathered", "exact_row_count": 0, "last_analyzed": "2026-10-13 15:27:02"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "UUT_TESTS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "UUT_TESTS_NEW", "status": "gathered", "exact_row_count": 21, "last_analyzed": "2026-10-13 15:27:02"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "UUT_TYPES", "status": "gathered", "exact_row_count": 21, "last_analyzed": "2026-10-13 15:27:02"}
+{"connection": "FLEX", "owner": "FSMB", "table_name": "UUT_TYPES_NEW", "status": "gathered", "exact_row_count": 21, "last_analyzed": "2026-10-13 15:27:02"}
+{"connection": "FLEX", "owner": "GSM_MODULE", "table_name": "LIMITS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "GSM_MODULE", "table_name": "MEAS_IVI_SINGLEPOINT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "GSM_MODULE", "table_name": "MEAS_IVI_WAVE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "GSM_MODULE", "table_name": "MEAS_IVI_WAVEPAIR", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "GSM_MODULE", "table_name": "MEAS_NUMERICLIMIT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "GSM_MODULE", "table_name": "MESSAGE_TYPE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "GSM_MODULE", "table_name": "SETTING_NUMERIC_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "GSM_MODULE", "table_name": "SETTING_STRING_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "GSM_MODULE", "table_name": "STATION_ADDRESSES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "GSM_MODULE", "table_name": "STEP_CALLEXE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "GSM_MODULE", "table_name": "STEP_MSGPOPUP", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "GSM_MODULE", "table_name": "STEP_PASSFAIL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "GSM_MODULE", "table_name": "STEP_PROPERTYLOADER", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "GSM_MODULE", "table_name": "STEP_RESULT", "status": "gathered", "exact_row_count": 29137790, "last_analyzed": "2026-10-13 15:27:03"}
+{"connection": "FLEX", "owner": "GSM_MODULE", "table_name": "STEP_SEQCALL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "GSM_MODULE", "table_name": "STEP_STRINGVALUE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "GSM_MODULE", "table_name": "UUT_CONFIGURATIONS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "GSM_MODULE", "table_name": "UUT_RESULT", "status": "gathered", "exact_row_count": 1243901, "last_analyzed": "2026-10-13 15:33:19"}
+{"connection": "FLEX", "owner": "GSM_MODULE", "table_name": "UUT_TESTS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "GSM_MODULE", "table_name": "UUT_TYPES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC", "table_name": "LIMITS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC", "table_name": "MEAS_IVI_SINGLEPOINT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC", "table_name": "MEAS_IVI_WAVE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC", "table_name": "MEAS_IVI_WAVEPAIR", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC", "table_name": "MEAS_NUMERICLIMIT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC", "table_name": "MESSAGE_TYPE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC", "table_name": "SETTING_NUMERIC_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC", "table_name": "SETTING_STRING_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC", "table_name": "STATION_ADDRESSES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC", "table_name": "STATION_PARAMS", "status": "gathered", "exact_row_count": 51, "last_analyzed": "2026-10-13 15:33:51"}
+{"connection": "FLEX", "owner": "HC", "table_name": "STEP_CALLEXE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC", "table_name": "STEP_MSGPOPUP", "status": "gathered", "exact_row_count": 184643, "last_analyzed": "2026-10-13 15:33:51"}
+{"connection": "FLEX", "owner": "HC", "table_name": "STEP_PASSFAIL", "status": "gathered", "exact_row_count": 4770023, "last_analyzed": "2026-10-13 15:33:53"}
+{"connection": "FLEX", "owner": "HC", "table_name": "STEP_PROPERTYLOADER", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC", "table_name": "STEP_RESULT", "status": "gathered", "exact_row_count": 152903344, "last_analyzed": "2026-10-13 15:34:12"}
+{"connection": "FLEX", "owner": "HC", "table_name": "STEP_SEQCALL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC", "table_name": "STEP_STRINGVALUE", "status": "gathered", "exact_row_count": 16590885, "last_analyzed": "2026-10-13 16:11:10"}
+{"connection": "FLEX", "owner": "HC", "table_name": "UUT_CONFIGURATIONS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC", "table_name": "UUT_RESULT", "status": "gathered", "exact_row_count": 646338, "last_analyzed": "2026-10-13 16:12:45"}
+{"connection": "FLEX", "owner": "HC", "table_name": "UUT_TESTS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC", "table_name": "UUT_TYPES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC", "table_name": "ZZ_PANELS_REV", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HCPSTN", "table_name": "LIMITS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HCPSTN", "table_name": "MEAS_IVI_SINGLEPOINT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HCPSTN", "table_name": "MEAS_IVI_WAVE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HCPSTN", "table_name": "MEAS_IVI_WAVEPAIR", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HCPSTN", "table_name": "MEAS_NUMERICLIMIT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HCPSTN", "table_name": "MESSAGE_TYPE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HCPSTN", "table_name": "SETTING_NUMERIC_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HCPSTN", "table_name": "SETTING_STRING_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HCPSTN", "table_name": "STATION_ADDRESSES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HCPSTN", "table_name": "STEP_CALLEXE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HCPSTN", "table_name": "STEP_MSGPOPUP", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HCPSTN", "table_name": "STEP_PASSFAIL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HCPSTN", "table_name": "STEP_PROPERTYLOADER", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HCPSTN", "table_name": "STEP_RESULT", "status": "gathered", "exact_row_count": 152392, "last_analyzed": "2026-10-13 16:13:06"}
+{"connection": "FLEX", "owner": "HCPSTN", "table_name": "STEP_SEQCALL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HCPSTN", "table_name": "STEP_STRINGVALUE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HCPSTN", "table_name": "UUT_CONFIGURATIONS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HCPSTN", "table_name": "UUT_RESULT", "status": "gathered", "exact_row_count": 1973, "last_analyzed": "2026-10-13 16:13:09"}
+{"connection": "FLEX", "owner": "HCPSTN", "table_name": "UUT_TESTS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HCPSTN", "table_name": "UUT_TYPES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC_KIT", "table_name": "DEVICE_TYPES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC_KIT", "table_name": "LIMITS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC_KIT", "table_name": "LOCATIONS", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC_KIT", "table_name": "MEAS_IVI_SINGLEPOINT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC_KIT", "table_name": "MEAS_IVI_WAVE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC_KIT", "table_name": "MEAS_IVI_WAVEPAIR", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC_KIT", "table_name": "MEAS_NUMERICLIMIT", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC_KIT", "table_name": "MESSAGE_TYPE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC_KIT", "table_name": "SETTING_NUMERIC_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC_KIT", "table_name": "SETTING_STRING_ARRAY", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC_KIT", "table_name": "STATION_ADDRESSES", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC_KIT", "table_name": "STEP_CALLEXE", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC_KIT", "table_name": "STEP_MSGPOPUP", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC_KIT", "table_name": "STEP_PASSFAIL", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}
+{"connection": "FLEX", "owner": "HC_KIT", "table_name": "STEP_PROPERTYLOADER", "status": "failed", "exact_row_count": null, "error": "ORA-20005: object statistics are locked (stattype = ALL)"}

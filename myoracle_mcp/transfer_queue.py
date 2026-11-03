@@ -116,6 +116,46 @@ def _replace_insert_trigger(cursor, columns: list[str]) -> str:
     return trigger_name
 
 
+_MISSING_PRODUCTS = f"""
+select p.last_uut_name
+from {OWNER}.{SOURCE_TABLE} p
+where not exists (
+    select 1 from {OWNER}.{QUEUE_TABLE} q
+    where q.last_uut_name = p.last_uut_name
+)
+and not exists (
+    select 1 from {OWNER}.{LOG_TABLE} l
+    where l.last_uut_name = p.last_uut_name
+)
+order by p.last_uut_name
+"""
+
+
+def enqueue_unlogged_products(cursor) -> dict[str, object]:
+    """Write product names the insert trigger never saw into the log and the queue.
+
+    The AFTER INSERT trigger copies ``LAST_UUT_NAME`` into both tables. Names
+    already stored in ``TRANSFER_PRODUCTS`` before that trigger existed are
+    absent from both. This performs those same two inserts and leaves names
+    that are already logged or queued untouched.
+    """
+    cursor.execute(_MISSING_PRODUCTS)
+    names = [str(row[0]) for row in cursor]
+    if not names:
+        return {"logged": 0, "queued": 0, "products": []}
+    cursor.executemany(
+        f"insert into {OWNER}.{LOG_TABLE} (LAST_UUT_NAME) values (:name)",
+        [{"name": name} for name in names],
+    )
+    logged = int(cursor.rowcount or 0)
+    cursor.executemany(
+        f"insert into {OWNER}.{QUEUE_TABLE} (LAST_UUT_NAME) values (:name)",
+        [{"name": name} for name in names],
+    )
+    queued = int(cursor.rowcount or 0)
+    return {"logged": logged, "queued": queued, "products": names}
+
+
 def _trigger_status(cursor, trigger_name: str) -> str | None:
     cursor.execute(
         "select status from dba_triggers where owner = :owner and trigger_name = :trigger_name",

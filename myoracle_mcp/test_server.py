@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import ast
 import json
+import re
+from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -20,6 +22,15 @@ import readonly_user
 import connection_migration
 import local_postgres
 import transfer_queue
+import ph_remaining_copy
+import hungary_targeted_copy
+import site_force_refresh
+import remote_copy
+import exact_table_stats
+import schema_datapump
+import schema_sql_copy
+import package_overloads
+import scheduled_task_logon
 import server
 
 
@@ -56,6 +67,32 @@ class ServerTests(unittest.TestCase):
             if not registered:
                 missing.append(node.name)
         self.assertEqual(missing, [])
+
+    def test_missing_programdata_is_restored_for_windows_child_processes(self):
+        with mock.patch.dict(server.os.environ, {}, clear=False):
+            server.os.environ.pop("ProgramData", None)
+            server._ensure_windows_programdata()
+            if server.os.name == "nt":
+                self.assertEqual(server.os.environ["ProgramData"], r"C:\ProgramData")
+            else:
+                self.assertNotIn("ProgramData", server.os.environ)
+
+    def test_scp_upload_keeps_the_password_out_of_the_process_arguments(self):
+        command = remote_copy.scp_command(
+            "es-db2-sp.example", 22, "brillix", [Path("probe.bin")], "C:/Temp/probe"
+        )
+        self.assertNotIn("secret-value", command)
+        self.assertEqual(command[-1], "brillix@es-db2-sp.example:C:/Temp/probe/")
+        completed = mock.Mock(returncode=0, stdout="", stderr="")
+        with mock.patch.object(remote_copy, "_askpass_program", return_value="askpass.exe"), \
+             mock.patch.object(remote_copy.subprocess, "run", return_value=completed) as run:
+            result = remote_copy.upload_with_scp(
+                "es-db2-sp.example", 22, "brillix", "secret-value", [Path("probe.bin")], "C:/Temp/probe"
+            )
+        self.assertEqual(result["uploaded"], ["C:/Temp/probe/probe.bin"])
+        self.assertNotIn("secret-value", run.call_args.args[0])
+        self.assertEqual(run.call_args.kwargs["env"]["SCP_UPLOAD_SECRET"], "secret-value")
+        self.assertEqual(run.call_args.kwargs["env"]["ProgramData"], r"C:\ProgramData")
 
     def test_spreadsheet_metadata_omits_secret_columns(self):
         records, ignored = server._connection_metadata(
@@ -514,6 +551,71 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(result["status"], "dropped")
         self.assertTrue(any(s.startswith("DROP MATERIALIZED VIEW") for s in statements))
 
+    def test_set_saved_scheduled_task_run_whether_logged_on_keeps_password_off_the_command(self):
+        password = "stored-secret"
+
+        class _Channel:
+            def shutdown_write(self):
+                return None
+
+            def recv_exit_status(self):
+                return 0
+
+        class _Stdin:
+            def __init__(self):
+                self.written = ""
+                self.channel = _Channel()
+
+            def write(self, text):
+                self.written += text
+
+            def flush(self):
+                return None
+
+        class _Reader:
+            def __init__(self, payload):
+                self.payload = payload
+                self.channel = _Channel()
+
+            def read(self):
+                return self.payload
+
+        class _Client:
+            def __init__(self):
+                self.command = ""
+                self.stdin = _Stdin()
+                self.closed = False
+
+            def exec_command(self, command, timeout=None, get_pty=False):
+                self.command = command
+                self.timeout = timeout
+                self.pty = get_pty
+                body = (
+                    b'{"task":"\\\\ORCL\\\\Refresh-Materialized-Views",'
+                    b'"user":"ESSENCESECURITY\\\\brillix","logon_type":"Password"}\n'
+                )
+                return self.stdin, _Reader(body), _Reader(b"")
+
+            def close(self):
+                self.closed = True
+
+        client = _Client()
+        with mock.patch.object(server, "_read_connection", return_value={"host": "es-db2-sp"}), \
+             mock.patch.object(server, "_ssh_settings", return_value=("brillix", "SSH/es-db2-sp", 22)), \
+             mock.patch.object(server, "_read_windows_credential", return_value=password), \
+             mock.patch.object(server, "_open_ssh", return_value=client):
+            result = server.set_saved_scheduled_task_run_whether_logged_on(
+                "es_db2_orclsp_sys", r"\ORCL\Refresh-Materialized-Views"
+            )
+        self.assertEqual(result["logon_type"], "Password")
+        self.assertEqual(result["user"], r"ESSENCESECURITY\brillix")
+        self.assertNotIn(password, client.command)
+        self.assertFalse(client.pty)
+        self.assertTrue(client.stdin.written.startswith(password))
+        self.assertTrue(client.closed)
+        with self.assertRaises(ValueError):
+            scheduled_task_logon.split_task_name("Refresh-Materialized-Views")
+
     def test_configure_daily_routine_schedule_creates_and_verifies_8am_task(self):
         completed = mock.MagicMock(returncode=0, stdout="ok", stderr="")
         with mock.patch.object(server.subprocess, "run", return_value=completed) as run:
@@ -655,6 +757,85 @@ class ServerTests(unittest.TestCase):
         self.assertGreater(len(messages), 1)
         self.assertLessEqual(len(messages), 3)
         self.assertTrue(all(len(message) <= 830 for message in messages))
+
+    def test_daily_routine_notification_falls_back_to_compact_when_detailed_overflows(self):
+        detailed = {
+            "space_issues": [
+                {"tablespace_name": "FLEXDWH_CL", "free_percent": 14.99, "issue": "free_percent_below_threshold"},
+                {"tablespace_name": "SPAIN_TBS", "free_percent": 14.79, "issue": "free_percent_below_threshold"},
+            ],
+            "backup_alerts": [
+                {"type": "missing_full", "incremental_level": 0, "days": 14},
+                {"type": "missing_incremental", "incremental_level": 1, "days": 3},
+            ],
+            "alert_log_alerts": [
+                {"type": "alert_log_error", "code": code, "count": 100 + number}
+                for number, code in enumerate(("TNS-12170", "ORA-06512", "ORA-12012", "ORA-38153", "ORA-12008", "ORA-3136", "ORA-609", "TNS-12547"))
+            ],
+            "refresh_mv_alerts": [
+                {
+                    "type": "refresh_mv_error",
+                    "ended_at": "2026-11-02 14:00:07",
+                    "error": "DatabaseError: ORA-12008: error in materialized view refresh path " + "x" * 260,
+                },
+                {
+                    "type": "refresh_mv_error",
+                    "ended_at": "2026-11-01 20:00:10",
+                    "error": "DatabaseError: ORA-12008: error in materialized view refresh path " + "y" * 260,
+                },
+            ],
+        }
+        real = {
+            "space_issues": [
+                {"tablespace_name": "SPAIN_TBS", "free_percent": 14.79, "issue": "free_percent_below_threshold"},
+            ],
+            "backup_alerts": [],
+            "alert_log_alerts": [
+                {"type": "alert_log_error", "code": "TNS-12170", "count": 131},
+                {"type": "alert_log_error", "code": "ORA-06512", "count": 81},
+            ],
+            "refresh_mv_alerts": [
+                {"type": "refresh_mv_error", "ended_at": "2026-11-02 14:00:07", "error": "ORA-01555 snapshot too old"},
+            ],
+        }
+
+        # The 03 Nov 2026 run produced six findings-bearing targets; four were
+        # small enough that only the large ones needed the detailed form.
+        def target(name, payload):
+            return {"connection_name": name, "status": "issues", **payload}
+
+        targets = [
+            target("DWH_CL", detailed),
+            target("FLEX", real),
+            target("HUN", real),
+            target("PH", real),
+            target("RH", real),
+            target("es_db2_orclsp_sys", detailed),
+        ]
+        result = {
+            "minimum_free_percent": 15.0,
+            "target_count": 7,
+            "ok_count": 0,
+            "issue_count": 6,
+            "failed_count": 1,
+            "targets": [
+                {
+                    "connection_name": "DWH",
+                    "status": "failed",
+                    "error": "OperationalError: DPY-6005: cannot connect to database. timed out",
+                },
+                *targets,
+            ],
+        }
+        messages = server._daily_routine_notification_messages(result)
+        self.assertLessEqual(len(messages), 3)
+        joined = "\n".join(messages)
+        self.assertIn("DWH — NOT CONNECTED", joined)
+        for name in ("DWH_CL", "FLEX", "HUN", "PH", "RH", "es_db2_orclsp_sys"):
+            self.assertIn(f"{name} — ISSUES", joined)
+        self.assertIn("SPAIN_TBS 14.79%", joined)
+        self.assertIn("no L0 in 14d", joined)
+        self.assertIn("RefreshMV ERROR", joined)
 
     def test_local_current_date_is_iso_format(self):
         result = server.get_local_current_date()
@@ -1653,6 +1834,630 @@ class TransferQueueTests(unittest.TestCase):
         self.assertEqual(result["backfilled_rows"], 0)
         self.assertEqual(result["trigger"], "ATE_RESULTS.TRG_TP_INS_QUEUE")
         self.assertNotIn("create table ATE_RESULTS.TRANSFER_PRODUCTS_QUEUE", text)
+
+    def test_enqueue_writes_only_names_missing_from_log_and_queue(self):
+        cursor = _EnqueueCursor([("ES700EPA-EN-K30",), ("ES8502HC-SP-K01",)])
+        result = transfer_queue.enqueue_unlogged_products(cursor)
+        self.assertEqual(result["products"], ["ES700EPA-EN-K30", "ES8502HC-SP-K01"])
+        self.assertEqual(result["logged"], 2)
+        self.assertEqual(result["queued"], 2)
+        text = "\n".join(cursor.statements)
+        self.assertIn("not exists", text.lower())
+        self.assertIn("insert into ATE_RESULTS.TRANSFER_PRODUCTS_LOG (LAST_UUT_NAME)", text)
+        self.assertIn("insert into ATE_RESULTS.TRANSFER_PRODUCTS_QUEUE (LAST_UUT_NAME)", text)
+        self.assertEqual(cursor.inserted[0], [{"name": "ES700EPA-EN-K30"}, {"name": "ES8502HC-SP-K01"}])
+        self.assertEqual(cursor.inserted[0], cursor.inserted[1])
+
+    def test_enqueue_does_nothing_when_every_name_is_already_recorded(self):
+        cursor = _EnqueueCursor([])
+        result = transfer_queue.enqueue_unlogged_products(cursor)
+        self.assertEqual(result, {"logged": 0, "queued": 0, "products": []})
+        self.assertEqual(len(cursor.statements), 1)
+
+
+class _EnqueueCursor:
+    def __init__(self, rows):
+        self.rows = rows
+        self.statements: list[str] = []
+        self.inserted: list[list[dict[str, str]]] = []
+        self.rowcount = 0
+
+    def execute(self, statement, binds=None):
+        del binds
+        self.statements.append(" ".join(str(statement).split()))
+        pending = getattr(self, "rowcounts", None)
+        if pending:
+            self.rowcount = pending.pop(0)
+
+    def executemany(self, statement, binds):
+        self.statements.append(" ".join(str(statement).split()))
+        rows = list(binds)
+        self.inserted.append(rows)
+        self.rowcount = len(rows)
+
+    def __iter__(self):
+        batches = getattr(self, "batches", None)
+        if batches:
+            return iter(batches.pop(0))
+        return iter(self.rows)
+
+
+class RemainingPhCopyTests(unittest.TestCase):
+    def test_copy_inserts_skipped_units_and_logs_them(self):
+        cursor = _EnqueueCursor([])
+        cursor.batches = [[("6600000000147", "0226055B0043402E")], [("ION2633000002",)]]
+        cursor.rowcounts = [0, 0, 1, 0, 1]
+        result = ph_remaining_copy.copy_remaining_ph_units(cursor)
+        self.assertEqual(result["inserted_from_materialized_view"], 0)
+        self.assertEqual(result["inserted_from_first_name"], 1)
+        self.assertEqual(result["logged"], 1)
+        self.assertEqual(result["blocked_by_existing_rf"], [
+            {"uut_serial_number": "6600000000147", "rf_number": "0226055B0043402E"},
+        ])
+        text = "\n".join(cursor.statements)
+        self.assertIn("existing_rf.RF_NUMBER", text)
+        self.assertIn("FIRST_UUT_NAME", text)
+
+
+class HungaryTargetedCopyTests(unittest.TestCase):
+    def test_copy_inserts_only_listed_rf_numbers_and_logs_them(self):
+        cursor = _EnqueueCursor([])
+        cursor.batches = [
+            [("4226014B9000CB7B",), ("4226015B9000C603",)],
+            [],
+            [("5602263428519",), ("5602256682446",)],
+        ]
+        cursor.rowcounts = [2, 0, 0, 0, 2, 0, 0]
+        result = hungary_targeted_copy.copy_hungary_units_by_rf(
+            cursor, [" 4226014b9000cb7b ", "4226015B9000C603"]
+        )
+        self.assertEqual(result["rf_numbers"], ["4226014B9000CB7B", "4226015B9000C603"])
+        self.assertEqual(result["inserted"], 2)
+        self.assertEqual(result["logged"], 2)
+        self.assertEqual(result["serials"], ["5602263428519", "5602256682446"])
+        self.assertEqual(result["blocked_by_existing_rf"], [])
+        self.assertEqual(result["missing_in_source"], [])
+        text = "\n".join(cursor.statements)
+        self.assertIn("HUNGARY_UUT_ATTRUBUTES", text)
+        self.assertIn("TRANSFER_USER.TRANSFER_LOG", text)
+        self.assertNotIn("delete from", text.lower())
+
+    def test_copy_reports_missing_source_rows(self):
+        cursor = _EnqueueCursor([])
+        cursor.batches = [[("4226014B9000CB7B",)], [], []]
+        cursor.rowcounts = [1, 0, 0, 0, 1, 0, 0]
+        result = hungary_targeted_copy.copy_hungary_units_by_rf(
+            cursor, ["4226014B9000CB7B", "4226015B9000C603"]
+        )
+        self.assertEqual(result["missing_in_source"], ["4226015B9000C603"])
+
+    def test_invalid_rf_numbers_are_rejected(self):
+        cursor = _EnqueueCursor([])
+        with self.assertRaisesRegex(ValueError, "Invalid RF_NUMBER"):
+            hungary_targeted_copy.copy_hungary_units_by_rf(cursor, ["bad rf!"])
+        with self.assertRaisesRegex(ValueError, "non-empty list"):
+            hungary_targeted_copy.copy_hungary_units_by_rf(cursor, [])
+
+    def test_remaining_copy_inserts_everything_missing_and_logs_it(self):
+        cursor = _EnqueueCursor([])
+        cursor.rowcounts = [26151, 0, 26151, 0, 0]
+        cursor.fetchone = lambda: (0,)
+        result = hungary_targeted_copy.copy_hungary_remaining_units(cursor)
+        self.assertEqual(result["inserted"], 26151)
+        self.assertEqual(result["logged"], 26151)
+        self.assertEqual(result["blocked_by_existing_rf"], 0)
+        text = "\n".join(cursor.statements)
+        self.assertIn("HUNGARY_UUT_ATTRUBUTES", text)
+        self.assertIn("TRANSFER_USER.TRANSFER_LOG", text)
+        self.assertNotIn("delete from", text.lower())
+        self.assertNotIn(":rf0", text)
+
+
+class _KwargsCursor(_EnqueueCursor):
+    def execute(self, statement, binds=None, **kwargs):
+        if kwargs:
+            binds = kwargs
+        return super().execute(statement, binds)
+
+    class connection:  # noqa: D401 - minimal stand-in for the real connection
+        @staticmethod
+        def commit():
+            return None
+
+
+class SiteForceRefreshTests(unittest.TestCase):
+    def test_force_refresh_runs_gated_free_copy_and_writes_audit_record(self):
+        cursor = _KwargsCursor([])
+        cursor.rowcounts = [0, 0, 0, 0, 0, 0, 0]
+        result = site_force_refresh.force_site_refresh(cursor, "RH")
+        self.assertEqual(result["site"], "RH")
+        self.assertEqual(
+            [entry["view"] for entry in result["refreshed"]],
+            ["RH_UUT_ATTRUBUTES", "RH_UUT_ATTRIBUTES_UPDATE", "RH_NKEYS_ALLOCATED"],
+        )
+        text = "\n".join(cursor.statements)
+        self.assertIn("dbms_mview.refresh", text)
+        self.assertIn("RH_UUT_ATTRUBUTES source", text)
+        self.assertIn("RH_NKEYS_ALLOCATED source", text)
+        self.assertIn("TRANSFER_LOG_SERIAL", text)
+        self.assertIn("insert into TRANSFER_USER.LOG_PROCEDURE values", text)
+        self.assertNotIn("TRANSFER_PRODUCTS_QUEUE", text)
+
+    def test_unknown_site_and_missing_confirmation_are_rejected(self):
+        cursor = _EnqueueCursor([])
+        with self.assertRaisesRegex(ValueError, "Unknown site"):
+            site_force_refresh.force_site_refresh(cursor, "Mars")
+
+
+class _ExactStatsCursor:
+    def __init__(self, tables, stats, fail=None, clock=None):
+        self.tables = tables
+        self.stats = stats
+        self.fail = fail or {}
+        self.clock = clock
+        self.call_timeout = 0
+        self.statements: list[str] = []
+        self.binds: list[dict] = []
+        self._mode = ""
+
+    def execute(self, sql, binds=None):
+        text = " ".join(str(sql).split())
+        self.statements.append(text)
+        self.binds.append(dict(binds or {}))
+        if "from dba_tables t" in text:
+            self._mode = "list"
+        elif "gather_table_stats" in text:
+            self._mode = "gather"
+            key = (binds["owner"], binds["table_name"])
+            if self.clock is not None:
+                self.clock.t = 100
+            if key in self.fail:
+                raise RuntimeError(self.fail[key])
+        else:
+            self._mode = "read"
+            self._key = (binds["owner"], binds["table_name"])
+
+    def __iter__(self):
+        return iter(self.tables)
+
+    def fetchone(self):
+        return self.stats[self._key]
+
+
+class _ExactStatsConnection:
+    def __init__(self, cursor):
+        self._cursor = cursor
+        self.closed = False
+
+    def close(self):
+        self.closed = True
+
+
+class ExactTableStatsTests(unittest.TestCase):
+    def test_rejects_unconfirmed_and_bad_limits(self):
+        with self.assertRaisesRegex(ValueError, "confirmed"):
+            server.gather_saved_exact_table_statistics(["DWH"], confirmed=False)
+        with self.assertRaisesRegex(ValueError, "degree"):
+            exact_table_stats.validate_request(["DWH"], 0, 10)
+        with self.assertRaisesRegex(ValueError, "timeout_seconds"):
+            exact_table_stats.validate_request(["DWH"], 10, 10801)
+        with self.assertRaisesRegex(ValueError, "duplicates"):
+            exact_table_stats.validate_request(["DWH", "DWH"], 10, 60)
+
+    def test_gathers_exact_counts_and_stops_at_timeout(self):
+        clock = type("Clock", (), {"t": 0})()
+
+        def now():
+            return clock.t
+
+        cursor = _ExactStatsCursor(
+            [("APP", "SMALL"), ("APP", "BIG")],
+            {("APP", "SMALL"): (4, "2026-10-13 12:00:00"), ("APP", "BIG"): (9, None)},
+            clock=clock,
+        )
+        result = exact_table_stats.gather_on_cursor(
+            cursor, degree=10, timeout_seconds=10, now=now
+        )
+        self.assertEqual(result["tables_gathered"], 1)
+        self.assertEqual(result["tables_not_started"], 1)
+        self.assertEqual(result["tables"][0]["exact_row_count"], 4)
+        self.assertEqual(result["tables"][0]["status"], "gathered")
+        self.assertEqual(result["tables"][1]["status"], "not_started")
+        self.assertIn("estimate_percent => :estimate_percent", cursor.statements[1])
+        self.assertEqual(cursor.binds[1]["degree"], 10)
+        self.assertEqual(cursor.binds[1]["estimate_percent"], 100)
+        self.assertGreater(cursor.call_timeout, 0)
+
+    def test_table_failure_continues_and_connections_run_together(self):
+        first = _ExactStatsCursor(
+            [("APP", "OK"), ("APP", "BAD")],
+            {("APP", "OK"): (3, "2026-10-13 12:00:00")},
+            fail={("APP", "BAD"): "ORA-20000: locked"},
+        )
+        second = _ExactStatsCursor(
+            [("APP", "OTHER")],
+            {("APP", "OTHER"): (8, "2026-10-13 12:01:00")},
+        )
+        cursors = {"DWH": first, "FLEX": second}
+        connections = {}
+
+        def connect(name):
+            cursor = cursors[name]
+            database = _ExactStatsConnection(cursor)
+            connections[name] = database
+            return database, cursor
+
+        result = exact_table_stats.gather_parallel(
+            ["DWH", "FLEX"], connect, 10, 10800, now=lambda: 0
+        )
+        by_name = {item["connection"]: item for item in result["connections"]}
+        self.assertEqual(result["parallel_connections"], 2)
+        self.assertEqual(by_name["DWH"]["tables"][0]["exact_row_count"], 3)
+        self.assertEqual(by_name["DWH"]["tables"][1]["status"], "failed")
+        self.assertEqual(by_name["FLEX"]["tables"][0]["exact_row_count"], 8)
+        self.assertTrue(connections["DWH"].closed)
+        self.assertTrue(connections["FLEX"].closed)
+
+    def test_connection_failure_is_written_to_progress(self):
+        def connect(name):
+            raise RuntimeError("timed out")
+
+        with TemporaryDirectory() as tmp:
+            result = exact_table_stats.gather_parallel(
+                ["DWH"], connect, 10, 60, progress_dir=Path(tmp), now=lambda: 0
+            )
+            progress = Path(tmp) / "DWH.jsonl"
+            self.assertIn("timed out", progress.read_text(encoding="utf-8"))
+        self.assertEqual(result["connections"][0]["status"], "failed")
+
+    def test_resume_skips_tables_already_recorded(self):
+        cursor = _ExactStatsCursor(
+            [("APP", "SMALL"), ("APP", "BIG")],
+            {
+                ("APP", "SMALL"): (4, "2026-10-13 12:00:00"),
+                ("APP", "BIG"): (9, "2026-10-13 12:05:00"),
+            },
+        )
+
+        def connect(name):
+            return _ExactStatsConnection(cursor), cursor
+
+        with TemporaryDirectory() as tmp:
+            progress = Path(tmp) / "FLEX.jsonl"
+            progress.write_text(
+                '{"connection": "FLEX", "owner": "APP", "table_name": "SMALL", '
+                '"status": "gathered", "exact_row_count": 4}\n',
+                encoding="utf-8",
+            )
+            result = exact_table_stats.gather_parallel(
+                ["FLEX"], connect, 10, 60, progress_dir=Path(tmp), now=lambda: 0, resume=True
+            )
+            text = progress.read_text(encoding="utf-8")
+        self.assertEqual(result["connections"][0]["tables_skipped"], 1)
+        self.assertEqual(result["connections"][0]["tables"][0]["table_name"], "BIG")
+        self.assertEqual(text.count('"table_name": "SMALL"'), 1)
+        self.assertIn('"table_name": "BIG"', text)
+
+    def test_server_tool_requires_confirmation_then_delegates(self):
+        with mock.patch.object(
+            server.exact_table_stats, "start_background", return_value={"status": "started"}
+        ) as start:
+            result = server.gather_saved_exact_table_statistics(
+                ["DWH", "FLEX"], degree=10, timeout_seconds=10800, confirmed=True, resume=True
+            )
+        start.assert_called_once()
+        self.assertEqual(start.call_args.args[0], ["DWH", "FLEX"])
+        self.assertEqual(start.call_args.args[2], 10)
+        self.assertEqual(start.call_args.args[3], 10800)
+        self.assertIs(start.call_args.args[5], True)
+        self.assertEqual(result, {"status": "started"})
+
+    def test_unlocks_locked_tables_then_samples_two_percent(self):
+        cursor = _ExactStatsCursor(
+            [("APP", "LOCKED")],
+            {("APP", "LOCKED"): (20, "2026-10-13 16:30:00")},
+        )
+        result = exact_table_stats.gather_on_cursor(
+            cursor,
+            degree=10,
+            timeout_seconds=60,
+            now=lambda: 0,
+            estimate_percent=2,
+            unlock_statistics=True,
+            locked_only=True,
+        )
+        self.assertEqual(result["estimate_percent"], 2)
+        self.assertEqual(result["tables"][0]["exact_row_count"], 20)
+        self.assertIn("stattype_locked is not null", cursor.statements[0])
+        self.assertIn("unlock_table_stats", cursor.statements[1])
+        self.assertEqual(cursor.binds[2]["estimate_percent"], 2)
+
+
+class SchemaDatapumpTests(unittest.TestCase):
+    def test_rejects_unsafe_schema_names_and_builds_a_zip_command(self):
+        with self.assertRaisesRegex(ValueError, "simple Oracle identifier"):
+            schema_datapump.normalize_schemas(["OPDI2_SYSTEM;drop"])
+        command = schema_datapump.zip_command(
+            r"D:\pump\OPDI2_SYSTEM_20261013T130000.dmp",
+            r"D:\pump\OPDI2_SYSTEM_20261013T130000.dmp.zip",
+        )
+        self.assertIn("Compress-Archive", command)
+        self.assertIn(r"'D:\pump\OPDI2_SYSTEM_20261013T130000.dmp'", command)
+        self.assertNotIn("password", command.lower())
+
+    def test_stops_before_export_when_the_destination_schema_exists(self):
+        source = _PumpDatabase(
+            {
+                "dba_users": [("OPDI2_SYSTEM", "N")],
+                "tablespaces": ["RH_TBS"],
+                "segments": ["RH_TBS"],
+                "directory": r"D:\pump",
+            }
+        )
+        target = _PumpDatabase(
+            {
+                "dba_users": [("OPDI2_SYSTEM", "N")],
+                "tablespaces": ["HUNG_TBS"],
+                "segments": [],
+                "directory": r"F:\pump",
+            }
+        )
+        databases = {"RH": source, "HUN": target}
+
+        def connect(name):
+            return databases[name]
+
+        result = schema_datapump.copy_schemas(
+            "RH",
+            "HUN",
+            ["OPDI2_SYSTEM"],
+            confirmed=True,
+            tablespace_remap={"RH_TBS": "HUNG_TBS"},
+            directory_name="PUMP_DIR",
+            connect=connect,
+            open_ssh=lambda name: databases[name],
+            now=lambda: datetime(2026, 10, 13, 13, 0, 0),
+        )
+        self.assertEqual(result["status"], "stopped")
+        self.assertEqual(result["existing_on_target"], ["OPDI2_SYSTEM"])
+        self.assertEqual(source.datapump_calls, [])
+        self.assertEqual(target.commands, [])
+
+    def test_zips_before_transfer_and_imports_with_tablespace_remap(self):
+        source = _PumpDatabase(
+            {
+                "dba_users": [("OPDI2_SYSTEM", "N")],
+                "tablespaces": ["RH_TBS"],
+                "segments": ["RH_TBS"],
+                "directory": r"D:\pump",
+            }
+        )
+        target = _PumpDatabase(
+            {
+                "dba_users": [],
+                "tablespaces": ["HUNG_TBS"],
+                "segments": [],
+                "directory": r"F:\pump",
+                "objects": 102,
+            }
+        )
+        databases = {"RH": source, "HUN": target}
+
+        result = schema_datapump.copy_schemas(
+            "RH",
+            "HUN",
+            ["opdi2_system"],
+            confirmed=True,
+            tablespace_remap={"RH_TBS": "HUNG_TBS"},
+            directory_name="PUMP_DIR",
+            connect=lambda name: databases[name],
+            open_ssh=lambda name: databases[name],
+            now=lambda: datetime(2026, 10, 13, 13, 0, 0),
+        )
+        self.assertEqual(result["status"], "imported")
+        self.assertEqual(result["tablespace_remap"], {"RH_TBS": "HUNG_TBS"})
+        self.assertEqual(source.commands[0], schema_datapump.directory_probe_command(r"D:\pump"))
+        self.assertEqual(source.commands[1], schema_datapump.zip_command(
+            r"D:\pump\OPDI2_SYSTEM_20261013T130000.dmp",
+            r"D:\pump\OPDI2_SYSTEM_20261013T130000.dmp.zip",
+        ))
+        self.assertLess(source.commands.index(source.commands[1]), len(source.downloads) + 1)
+        self.assertEqual(source.downloads, [r"D:/pump/OPDI2_SYSTEM_20261013T130000.dmp.zip"])
+        self.assertEqual(target.uploads[0][0].endswith(r"OPDI2_SYSTEM_20261013T130000.dmp.zip"), True)
+        self.assertIn("REMAP_TABLESPACE", target.datapump_calls[0][0])
+        self.assertEqual(target.datapump_calls[0][1]["old_0"], "RH_TBS")
+        self.assertEqual(target.datapump_calls[0][1]["new_0"], "HUNG_TBS")
+        self.assertEqual(result["object_counts"], {"OPDI2_SYSTEM": 102})
+
+
+class _PumpCursor:
+    def __init__(self, owner: "_PumpDatabase") -> None:
+        self.owner = owner
+        self._rows: list[tuple] = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+    def execute(self, sql, binds=None):
+        self.owner.statements.append(sql)
+        if binds and "job_state" in binds:
+            self.owner.datapump_calls.append((sql, {key: value for key, value in binds.items() if key != "job_state"}))
+            return
+        text = " ".join(sql.split())
+        if "from dba_users" in text and "oracle_maintained" in text:
+            requested = set(re.findall(r"'([^']+)'", text))
+            self._rows = [row for row in self.owner.users if row[0] in requested]
+        elif "default_tablespace" in text:
+            self._rows = [(name,) for name in self.owner.segment_tablespaces]
+        elif "contents = 'PERMANENT'" in text or "from dba_tablespaces" in text:
+            requested = set(re.findall(r"'([^']+)'", text))
+            self._rows = [(name,) for name in self.owner.tablespaces if name in requested]
+        elif "from dba_directories" in text:
+            self._rows = [(self.owner.directory,)]
+        elif "from dba_objects" in text:
+            self._rows = [(self.owner.objects,)]
+        else:
+            self._rows = []
+
+    def fetchall(self):
+        return list(self._rows)
+
+    def var(self, _kind):
+        return self.owner._state_holder
+
+
+class _PumpState:
+    def getvalue(self) -> str:
+        return "COMPLETED"
+
+
+class _PumpDatabase:
+    def __init__(self, data: dict) -> None:
+        self.users = list(data["dba_users"])
+        self.tablespaces = list(data["tablespaces"])
+        self.segment_tablespaces = list(data["segments"])
+        self.directory = data["directory"]
+        self.objects = data.get("objects", 0)
+        self.statements: list[str] = []
+        self.datapump_calls: list[tuple] = []
+        self.commands: list[str] = []
+        self.downloads: list[str] = []
+        self.uploads: list[tuple[str, str]] = []
+        self.closed = False
+        self.call_timeout = 0
+        self._state_holder = _PumpState()
+
+    def cursor(self):
+        return _PumpCursor(self)
+
+    def run(self, command: str) -> str:
+        self.commands.append(command)
+        return "DIRECTORY_OK\n"
+
+    def download(self, remote, local):
+        self.downloads.append(remote)
+        Path(local).write_bytes(b"zip")
+
+    def upload(self, local, remote):
+        self.uploads.append((local, remote))
+
+    def read_text(self, _remote) -> str:
+        return "Job successfully completed\n"
+
+    def close(self):
+        self.closed = True
+
+
+class SchemaSqlCopyTests(unittest.TestCase):
+    def test_remap_replaces_only_quoted_tablespace_names(self):
+        ddl = 'CREATE TABLE "OPDI2_SYSTEM"."LIMITS" ("ID" NUMBER) TABLESPACE "RH_TBS"'
+        remapped = schema_sql_copy.remap_ddl(ddl, {"RH_TBS": "HUNG_TBS"})
+        self.assertIn('TABLESPACE "HUNG_TBS"', remapped)
+        self.assertNotIn("RH_TBS", remapped)
+        self.assertNotIn("PCTUSED", schema_sql_copy.remap_ddl("PCTFREE 10 PCTUSED 0 INITRANS 1", {}))
+
+    def test_splits_table_metadata_into_separate_statements(self):
+        ddl = (
+            'CREATE TABLE "OPDI2_SYSTEM"."MESSAGE_TYPE" ("ID" NUMBER) TABLESPACE "RH_TBS" \n'
+            '  CREATE UNIQUE INDEX "OPDI2_SYSTEM"."MESSAGE_TYPE_PK" ON "OPDI2_SYSTEM"."MESSAGE_TYPE" ("ID") \n'
+            'ALTER TABLE "OPDI2_SYSTEM"."MESSAGE_TYPE" ADD CONSTRAINT "MESSAGE_TYPE_PK" PRIMARY KEY ("ID")'
+        )
+        statements = schema_sql_copy.sql_statements(schema_sql_copy.remap_ddl(ddl, {"RH_TBS": "HUNG_TBS"}))
+        self.assertEqual(len(statements), 3)
+        self.assertTrue(statements[0].startswith("CREATE TABLE"))
+        self.assertTrue(statements[1].startswith("CREATE UNIQUE INDEX"))
+        self.assertTrue(statements[2].startswith("ALTER TABLE"))
+        inline = schema_sql_copy.sql_statements(
+            'CREATE TABLE "S"."T" ("ID" NUMBER) TABLESPACE "HUNG_TBS" CREATE UNIQUE INDEX "S"."T_PK" ON "S"."T" ("ID")'
+        )
+        self.assertEqual(len(inline), 2)
+        self.assertTrue(inline[1].startswith("CREATE UNIQUE INDEX"))
+
+    def test_stops_when_the_destination_schema_exists(self):
+        source = _SqlCopyDatabase(["OPDI2_SYSTEM"])
+        target = _SqlCopyDatabase(["OPDI2_SYSTEM"])
+
+        result = schema_sql_copy.copy_schema(
+            "RH",
+            "HUN",
+            "OPDI2_SYSTEM",
+            confirmed=True,
+            tablespace_remap={"RH_TBS": "HUNG_TBS"},
+            connect=lambda name: {"RH": source, "HUN": target}[name],
+        )
+        self.assertEqual(result["status"], "stopped")
+        self.assertEqual(target.executed, [])
+
+
+class _SqlCopyCursor:
+    def __init__(self, owner: "_SqlCopyDatabase") -> None:
+        self.owner = owner
+        self._rows: list[tuple] = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+    def execute(self, sql, binds=None):
+        text = " ".join(str(sql).split())
+        if "from dba_users where username = :schema" in text:
+            schema = (binds or {}).get("schema")
+            self._rows = [(schema,)] if schema in self.owner.users else []
+            return
+        self.owner.executed.append(text)
+        self._rows = []
+
+    def fetchall(self):
+        return list(self._rows)
+
+
+class _SqlCopyDatabase:
+    def __init__(self, users: list[str]) -> None:
+        self.users = users
+        self.executed: list[str] = []
+        self.call_timeout = 0
+
+    def cursor(self):
+        return _SqlCopyCursor(self)
+
+    def close(self):
+        return None
+
+    def commit(self):
+        return None
+
+
+class PackageOverloadTests(unittest.TestCase):
+    def test_replaces_every_contiguous_overload(self):
+        source = [
+            "PACKAGE DEMO IS\n",
+            " PROCEDURE KEEP_ME;\n",
+            " PROCEDURE INSERT_SITE_ATE_RESULT(a number);\n",
+            " PROCEDURE INSERT_SITE_ATE_RESULT(a number, b varchar2);\n",
+            " PROCEDURE AFTER_ME;\n",
+            "END;\n",
+        ]
+        target = [
+            "PACKAGE DEMO IS\n",
+            " PROCEDURE KEEP_ME;\n",
+            " PROCEDURE INSERT_SITE_ATE_RESULT(a number);\n",
+            " PROCEDURE AFTER_ME;\n",
+            "END;\n",
+        ]
+        merged, copied = package_overloads.replace_overloads(
+            target, source, "INSERT_SITE_ATE_RESULT"
+        )
+        text = "".join(merged)
+        self.assertEqual(copied, 2)
+        self.assertEqual(text.count("PROCEDURE INSERT_SITE_ATE_RESULT"), 2)
+        self.assertIn("PROCEDURE KEEP_ME", text)
+        self.assertIn("PROCEDURE AFTER_ME", text)
+        self.assertIn("b varchar2", text)
 
 
 if __name__ == "__main__":

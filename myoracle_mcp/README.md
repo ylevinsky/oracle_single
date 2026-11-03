@@ -35,6 +35,9 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
   UNDO tablespaces.
 - `collect_saved_backup_scripts`: copies backup, dependency, and restore script
   files from an SSH-accessible saved host into `rman/scripts/<site>`.
+- `upload_files_to_saved_host`: copies selected files from `ORCL/` to a saved
+  SSH host with Windows `scp`. The password is passed through an askpass
+  program and is not placed on the command line.
 - `inspect_saved_alert_log_errors`: checks recent Oracle alert-log records and
   reports matching errors.
 - `summarize_saved_alert_log_codes`: counts `ORA-`, `TNS-`, and `RMAN-` codes
@@ -57,7 +60,9 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
   aggregate notification to the `daily_routine.slack_user_id` configured in `config.yaml`.
   The file uses JSON-compatible YAML and stores a Slack user ID, so the bot opens
   its own DM channel. The complete report is split into readable parts (up to
-  three messages).
+  three messages). When the findings outgrow three messages, the notifier
+  switches to a compact one-line-per-target rendering so every problem is still
+  delivered instead of dropping the notification.
   For Spain (`es_db2_orclsp_sys`) it also includes up to five `refresh_mv.py`
   `DAILY_TRANSFER` errors from the last 48 hours, or a failure status when no
   execution is recorded in that period. Generic job and refresh statuses remain
@@ -69,6 +74,10 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
 - `configure_daily_routine_schedule`: creates or updates the local Windows Task
   Scheduler task `\\OracleMCP\\DailyRoutine` for daily execution at 08:00. Its
   runner calls `daily_rutione_check`, prints the full result locally, and sends the configured default Slack DM.
+- `set_saved_scheduled_task_run_whether_logged_on`: changes one Windows scheduled
+  task on a saved host so it runs whether its account is logged on. The saved
+  SSH password is sent on the remote process stdin and is not returned. The
+  task keeps its existing account.
 - `resolve_slack_channel`: resolves a visible Slack channel name (such as
   `essence`) to the ID required by `daily_rutione_check` notifications.
 - `list_top_sql_memory`: ranks non-Oracle-maintained SQL by shared-pool memory
@@ -92,6 +101,26 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
   on a saved site, copies current `TRANSFER_PRODUCTS_LOG` rows into it once, and
   updates the insert trigger to write the log and the queue. The log stays
   insert-only. It requires `confirmed=true`.
+- `enqueue_saved_untransferred_products`: inserts `LAST_UUT_NAME` into the
+  transfer log and queue, the same two writes the insert trigger performs.
+  Only names present in `TRANSFER_PRODUCTS` and absent from both the log and
+  the queue are included. It requires `confirmed=true`.
+- `copy_saved_remaining_ph_units`: copies PH serials the refresh left out of
+  `ATE_RESULTS.GLOBAL_UUT_ATTRIBUTES`, including a repeated RF number and a
+  listed product stored only as `FIRST_UUT_NAME`, and logs them as `PH`.
+  Run it on the Spain connection. It requires `confirmed=true`.
+- `copy_saved_hungary_units_by_rf`: copies only the listed Hungary RF numbers
+  from `TRANSFER_USER.HUNGARY_UUT_ATTRUBUTES` into
+  `ATE_RESULTS.GLOBAL_UUT_ATTRIBUTES` and logs them as `Hungary`.
+  Run it on the Spain connection. It requires `confirmed=true`.
+- `copy_saved_hungary_remaining_units`: copies every Hungary MV row missing
+  from `ATE_RESULTS.GLOBAL_UUT_ATTRIBUTES` and logs the new serials as
+  `Hungary`. Run it on the Spain connection. It requires `confirmed=true`.
+- `force_saved_site_refresh`: refreshes one site's three materialized views
+  (Hungary, Ofakim, RH, or PH) and copies every new UUT row and serial into
+  the Spain global tables with no queue or cooldown gate, then writes the
+  `DAILY_TRANSFER` audit record. Run it on the Spain connection. It requires
+  `confirmed=true`.
 - `create_philippines_refresh_objects`: creates the missing Repair Center
   Philippines refresh tables, serial index, and materialized views. Existing
   objects are left unchanged. It requires `confirmed=true` and does not refresh
@@ -137,6 +166,22 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
   datafiles, the frozen SCN range, and the database time. Uses the saved host
   unless `host` (and optionally `port`) is overridden; overridden checks reuse
   the saved credentials and persist nothing.
+- `copy_saved_schemas_with_datapump`: exports the named schemas with Data Pump
+  into the source `PUMP_DIR` (or another directory object), zips the dump on
+  that host, copies only the zip, extracts it into the target directory, and
+  imports it. The copy stops before export when any named schema already
+  exists on the target. Pass `confirmed=true` to run the export and import.
+  Use `tablespace_remap` when the source tablespace is absent on the target.
+- `copy_saved_schema_without_datapump`: copies one schema with
+  `DBMS_METADATA` and row inserts. Stops before any change when that schema
+  already exists on the target. Use this when Data Pump refuses the dump
+  because the target timezone file is older. Pass `confirmed=true` to create
+  the schema. The source password verifier is reused and never returned.
+- `sync_saved_package_overloads`: copies every overload of one packaged
+  procedure from a source database into the same package on a target. The
+  other procedures in the target package stay in place. Pass `confirmed=true`
+  to replace the package. Optional `trigger_owner` and `trigger_name` compile
+  that trigger afterward.
 - `run_saved_oracle_query`: runs one read-only `SELECT`/`WITH` statement on a
   saved Oracle connection and returns columns plus up to `max_rows` rows
   (1-5000, default 500). Statements containing DML, DDL, `FOR UPDATE`,
@@ -144,6 +189,18 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
   saved host unless `host` (and optionally `port`) is overridden. Pass
   `service_name` to override the saved service (empty string connects by
   SID), or `sid` to override the saved SID; overridden runs persist nothing.
+- `gather_saved_exact_table_statistics`: gathers optimizer statistics for
+  every non-Oracle-maintained table on one to four saved connections at the
+  same time. Each table uses ``DBMS_STATS.GATHER_TABLE_STATS`` with
+  ``estimate_percent`` (default 100) and parallel ``degree`` (default 10).
+  At 100 the returned row count is a full count. ``unlock_statistics`` unlocks
+  each table before gathering it, and ``locked_only`` limits the run to tables
+  whose statistics are already locked. Temporary, nested, external, secondary,
+  recycle-bin, and ``$`` names are skipped. Each connection stops starting new
+  tables after ``timeout_seconds`` (maximum 10800, three hours). It requires
+  ``confirmed=true``. The call returns as soon as the work has started.
+  Per-table progress is appended under ``reports/exact_table_stats/``.
+  ``resume=true`` skips tables already recorded there.
 - `list_saved_table_timestamp_ranges`: for every table owned by a
   non-Oracle-maintained schema that has DATE or TIMESTAMP columns, reports
   the owner, table name, those columns, segment size in MB, and the overall

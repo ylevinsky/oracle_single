@@ -10,3 +10,6 @@ __pycache__/
 
 # Local database credentials
 .db/connections.json
+
+# Generated routine output (local only)
+report.md

@@ -1,0 +1,19 @@
+{
+  "name": "git-agent",
+  "owner": {
+    "name": "C:\\git workspace"
+  },
+  "metadata": {
+    "description": "Shared agent skills and hooks for the C:\\git monorepo (Cursor + Codex parity)",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "git-oracle-agent",
+      "source": "./.github/plugins/git-oracle-agent",
+      "description": "Oracle MCP skills and myoracle guard hooks for C:\\git",
+      "version": "1.0.0",
+      "skills": "skills/"
+    }
+  ]
+}

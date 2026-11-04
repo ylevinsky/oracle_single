@@ -1,0 +1,15 @@
+# Nested repositories (versioned separately)
+/Bonsai-demo/
+/oracle_single/
+/ORCL/
+/Super-MCP/
+
+# Local artifacts
+*.pdf
+*.png
+.base64
+
+# Secrets
+.env
+.env.*
+**/.db/

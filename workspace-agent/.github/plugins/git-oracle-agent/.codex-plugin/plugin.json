@@ -1,0 +1,8 @@
+{
+  "name": "git-oracle-agent",
+  "description": "Project skills and hooks for local Oracle MCP work in C:\\git",
+  "version": "1.0.0",
+  "skills": "./skills",
+  "hooks": "./hooks/codex-hooks.json",
+  "mcpServers": "./mcp.json"
+}

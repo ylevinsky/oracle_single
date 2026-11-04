@@ -1,0 +1,14 @@
+---
+description: Integrate every generated Python file into the local myoracle MCP server
+alwaysApply: true
+---
+
+# Generated Python belongs in the local MCP server
+
+The local MCP server is `oracle_single/myoracle_mcp/server.py` (`FastMCP`). A new Python file is not finished until that server can run it.
+
+- Put the module under `oracle_single/myoracle_mcp/`.
+- Do not leave a one-off script in `ORCL/` or a temp path as the only way to run the new code.
+- Never create or run `myoracle_mcp/a.py`. The RH connection check is the `check_saved_oracle_connectivity` tool.
+
+For the full step-by-step workflow (module, `@mcp.tool()` registration, README, tests), use the `add-myoracle-tool` skill. Hooks in `.cursor/hooks/` block `myoracle_mcp/a.py` and remind after Python files are written outside the MCP directory.

@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "super-mcp": {
+      "command": "C:\\Users\\brillix\\AppData\\Roaming\\npm\\node_modules\\super-mcp-router\\dist\\cli.js",
+      "args": [
+        "--config",
+        "C:\\Users\\brillix\\.super-mcp\\config.json"
+      ],
+      "cwd": "C:\\git"
+    },
+    "myoracle": {
+      "command": "C:\\git\\oracle_single\\myoracle_mcp\\.venv\\Scripts\\python.exe",
+      "args": ["C:\\git\\oracle_single\\myoracle_mcp\\server.py"],
+      "cwd": "C:\\git\\oracle_single",
+      "env": {
+        "PYTHONIOENCODING": "utf-8"
+      }
+    }
+  }
+}

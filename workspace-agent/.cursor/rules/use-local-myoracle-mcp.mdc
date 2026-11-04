@@ -1,0 +1,11 @@
+---
+description: Use the local myoracle MCP server for operational work and add a tool when one is missing
+alwaysApply: true
+---
+
+# Use the local myoracle MCP server
+
+Operational work goes through the local MCP server at `oracle_single/myoracle_mcp/server.py`. That includes Oracle queries, saved connections, alert logs, SSH on saved hosts, backups, and related checks.
+
+- Discover and call the existing `@mcp.tool()` functions. Do not open a saved connection from a one-off script, `sqlplus`, or a private import of `server.py`.
+- If no tool can perform the task, add that tool before doing the work another way, then finish the original task by calling the new tool. Use the `add-myoracle-tool` skill for the full workflow (module under `oracle_single/myoracle_mcp/`, one `@mcp.tool()` in `server.py`, README entry, test in `test_server.py` when it can run without a live database).

@@ -1,0 +1,38 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:\\git\\.cursor\\hooks\\myoracle-guard.js",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|Shell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:\\git\\.cursor\\hooks\\myoracle-guard.js",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:\\git\\.cursor\\hooks\\myoracle-guard.js",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

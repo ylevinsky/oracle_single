@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "command": "node .cursor/hooks/myoracle-guard.js",
+        "matcher": "Write|Edit",
+        "timeout": 10
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": "node .cursor/hooks/myoracle-guard.js",
+        "matcher": "a\\.py",
+        "timeout": 10
+      }
+    ],
+    "postToolUse": [
+      {
+        "command": "node .cursor/hooks/myoracle-guard.js",
+        "matcher": "Write",
+        "timeout": 10
+      }
+    ]
+  }
+}

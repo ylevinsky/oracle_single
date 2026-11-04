@@ -65,12 +65,18 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
   delivered instead of dropping the notification.
   For Spain (`es_db2_orclsp_sys`) it also includes up to five `refresh_mv.py`
   `DAILY_TRANSFER` errors from the last 48 hours, a `refresh_mv_backlog_breach`
-  alert for any site whose eligible staging backlog reaches 100 rows or 24 hours
-  of age (eligible = serial and RF both absent from `GLOBAL_UUT_ATTRIBUTES`,
-  with serial-match/RF-conflict counts and oldest `LAST_TEST_DATE`), or a
-  failure status when no
-  execution is recorded in that period. Generic job and refresh statuses remain
-  outside the report.
+  alert for any site whose eligible staging backlog reaches 100 rows or whose
+  oldest eligible `LAST_TEST_DATE` is at least 24 hours old, using Oracle's
+  `SYSDATE` for the age comparison. Eligible means the serial and RF are absent
+  from `GLOBAL_UUT_ATTRIBUTES`; null RF values are eligible when the serial is
+  absent, matching the sync copy predicate. The counts describe staging rows,
+  including any duplicate keys within a batch. Failed backlog queries produce
+  `refresh_mv_backlog_check_failed` alerts and null counts, not healthy zeros.
+  Backlog alerts have a separate limit from the five stuck workers and five
+  recent errors. Appropriate indexes on global serial and RF columns are needed
+  for efficient checks; verify them before relying on frequent status calls.
+  A failure status is returned when no execution is recorded in that period.
+  Generic job and refresh statuses remain outside the report.
   A saved Oracle target that cannot be reached is reported as not connected.
   The complete result is also written to `report.md` at the repository root.
   Supply `slack_channel_id` to override that destination.
@@ -91,8 +97,8 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
   encoding, size, and whether connections are allowed.
 - `inspect_local_rag_database`: checks the local RAG PostgreSQL database,
   pgvector extension, and required RAG tables.
-- `ingest_local_rag_markdown`: ingests a Markdown file or directory into the
-  local PostgreSQL RAG database.
+- `ingest_local_rag_markdown`: ingests a Markdown or Python file, or directory,
+  into the local PostgreSQL RAG database. Never ingest files containing secrets.
 - `list_top_full_scan_queries`: ranks shared-pool SQL from non-Oracle-maintained
   parsing schemas whose plans contain `TABLE ACCESS FULL`.
 - `inspect_sql_index_context`: returns active plan predicates, object statistics,
@@ -107,8 +113,8 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
   insert-only. It requires `confirmed=true`.
 - `apply_proposed_site_indexes`: creates missing station-template, hub/transfer,
   report, and foreign-key supporting indexes from data dictionary metadata.
-  New indexes are built ONLINE when the database supports it; on Standard Edition
-  (ORA-00439) the same definition is created without ONLINE. Requires `confirmed=true`.
+  New indexes are built ONLINE only; unsupported ONLINE builds are reported as
+  errors and are never retried offline. Requires `confirmed=true`.
 - `enqueue_saved_untransferred_products`: inserts `LAST_UUT_NAME` into the
   transfer log and queue, the same two writes the insert trigger performs.
   Only names present in `TRANSFER_PRODUCTS` and absent from both the log and

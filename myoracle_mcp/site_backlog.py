@@ -30,23 +30,17 @@ def backlog_sql(site_name: str) -> tuple[str, dict[str, Any]]:
     except KeyError as exc:
         raise ValueError(f"Unknown backlog site: {site_name!r}.") from exc
     sql = (
-        "select "
-        f"(select count(*) from TRANSFER_USER.{staging_table}) as staging, "
-        f"(select count(*) from TRANSFER_USER.{staging_table} s "
-        "where not exists (select 1 from ATE_RESULTS.GLOBAL_UUT_ATTRIBUTES g "
-        "where g.UUT_SERIAL_NUMBER = s.UUT_SERIAL_NUMBER) "
-        "and not exists (select 1 from ATE_RESULTS.GLOBAL_UUT_ATTRIBUTES g2 "
-        "where g2.RF_NUMBER = s.RF_NUMBER)) as eligible, "
-        f"(select count(*) from TRANSFER_USER.{staging_table} s "
-        "where exists (select 1 from ATE_RESULTS.GLOBAL_UUT_ATTRIBUTES g "
-        "where g.UUT_SERIAL_NUMBER = s.UUT_SERIAL_NUMBER)) as serial_match, "
-        f"(select count(*) from TRANSFER_USER.{staging_table} s "
-        "where not exists (select 1 from ATE_RESULTS.GLOBAL_UUT_ATTRIBUTES g "
-        "where g.UUT_SERIAL_NUMBER = s.UUT_SERIAL_NUMBER) "
-        "and exists (select 1 from ATE_RESULTS.GLOBAL_UUT_ATTRIBUTES g2 "
-        "where g2.RF_NUMBER = s.RF_NUMBER)) as rf_conflict, "
-        f"(select min(s.LAST_TEST_DATE) from TRANSFER_USER.{staging_table} s) as oldest "
-        "from DUAL"
+        "select counts.*, sysdate as as_of from (select count(*) as staging, "
+        "count(case when serial_match = 0 and rf_match = 0 then 1 end) as eligible, "
+        "count(case when serial_match = 1 then 1 end) as serial_match, "
+        "count(case when serial_match = 0 and rf_match = 1 then 1 end) as rf_conflict, "
+        "min(case when serial_match = 0 and rf_match = 0 then LAST_TEST_DATE end) as oldest from ("
+        "select s.LAST_TEST_DATE, "
+        "case when exists (select 1 from ATE_RESULTS.GLOBAL_UUT_ATTRIBUTES g "
+        "where g.UUT_SERIAL_NUMBER = s.UUT_SERIAL_NUMBER) then 1 else 0 end as serial_match, "
+        "case when exists (select 1 from ATE_RESULTS.GLOBAL_UUT_ATTRIBUTES g2 "
+        "where g2.RF_NUMBER = s.RF_NUMBER) then 1 else 0 end as rf_match "
+        f"from TRANSFER_USER.{staging_table} s)) counts"
     )
     return sql, {}
 
@@ -62,13 +56,7 @@ def _parse_oldest(value: Any) -> datetime | None:
     try:
         return datetime.fromisoformat(text)
     except ValueError:
-        pass
-    for pattern in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
-        try:
-            return datetime.strptime(text[: len(pattern)], pattern)
-        except ValueError:
-            continue
-    return None
+        return None
 
 
 def backlog_age_hours(oldest: Any, now: datetime | None = None) -> float | None:
@@ -77,7 +65,10 @@ def backlog_age_hours(oldest: Any, now: datetime | None = None) -> float | None:
     if parsed is None:
         return None
     reference = now or datetime.now()
-    return (reference - parsed).total_seconds() / 3600.0
+    try:
+        return (reference - parsed).total_seconds() / 3600.0
+    except TypeError:
+        return None
 
 
 def is_breach(
@@ -91,9 +82,12 @@ def is_breach(
         eligible = int(entry.get("eligible") or 0)
     except (TypeError, ValueError):
         eligible = 0
+    if eligible <= 0:
+        return False
     if eligible >= count_threshold:
         return True
-    age = backlog_age_hours(entry.get("oldest"), now)
+    reference = now or _parse_oldest(entry.get("as_of"))
+    age = backlog_age_hours(entry.get("oldest"), reference)
     return age is not None and age >= age_hours_threshold
 
 
@@ -103,13 +97,10 @@ def fetch_site_backlog(cursor: Any, site_name: str) -> dict[str, Any]:
     cursor.execute(sql, binds) if binds else cursor.execute(sql)
     row = cursor.fetchone()
     if row is None:
-        staging, eligible, serial_match, rf_conflict, oldest = 0, 0, 0, 0, None
-    else:
-        staging, eligible, serial_match, rf_conflict, oldest = row
-    if hasattr(oldest, "isoformat"):
-        oldest_value: Any = oldest.isoformat()
-    else:
-        oldest_value = oldest
+        raise RuntimeError(f"Backlog query returned no result for {site_name}.")
+    staging, eligible, serial_match, rf_conflict, oldest, as_of = row
+    oldest_value = oldest.isoformat() if hasattr(oldest, "isoformat") else oldest
+    as_of_value = as_of.isoformat() if hasattr(as_of, "isoformat") else as_of
     return {
         "site": site_name,
         "staging": int(staging or 0),
@@ -117,6 +108,7 @@ def fetch_site_backlog(cursor: Any, site_name: str) -> dict[str, Any]:
         "serial_match": int(serial_match or 0),
         "rf_conflict": int(rf_conflict or 0),
         "oldest": oldest_value,
+        "as_of": as_of_value,
     }
 
 

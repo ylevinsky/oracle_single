@@ -311,8 +311,15 @@ def _daily_routine_notification_lines(result: dict[str, Any], compact: bool = Fa
                 summary += f"; and {extra} more"
             parts.append(("Log " if compact else "Alert log: ") + summary)
         refresh_alerts = target.get("refresh_mv_alerts") or []
-        for alert in refresh_alerts[: 2 if compact else None]:
-            if alert["type"] == "refresh_mv_error":
+        if compact:
+            backlog_alerts = [alert for alert in refresh_alerts if alert["type"] in {
+                "refresh_mv_backlog_breach", "refresh_mv_backlog_check_failed"
+            }]
+            other_alerts = [alert for alert in refresh_alerts if alert not in backlog_alerts]
+            refresh_alerts = backlog_alerts + other_alerts[:2]
+        for alert in refresh_alerts:
+            alert_type = alert["type"]
+            if alert_type == "refresh_mv_error":
                 if compact:
                     parts.append(f"RefreshMV ERROR ended {alert['ended_at']}")
                 else:
@@ -320,13 +327,22 @@ def _daily_routine_notification_lines(result: dict[str, Any], compact: bool = Fa
                         "Refresh-MV ALERT: ERROR; "
                         f"ended {alert['ended_at']}; {alert['error']}"
                     )
-            elif compact:
-                parts.append(f"RefreshMV not run in {alert['hours']}h")
+            elif alert_type == "refresh_mv_stuck":
+                parts.append(f"RefreshMV stuck: {alert.get('site')}")
+            elif alert_type == "refresh_mv_backlog_breach":
+                parts.append(f"RefreshMV backlog: {alert.get('site')} eligible={alert.get('eligible')}")
+            elif alert_type == "refresh_mv_backlog_check_failed":
+                parts.append(f"RefreshMV backlog check failed: {alert.get('site')} {alert.get('error')}")
+            elif alert_type == "refresh_mv_not_executed":
+                if compact:
+                    parts.append(f"RefreshMV not run in {alert['hours']}h")
+                else:
+                    parts.append(
+                        "Refresh-MV ALERT: status FAILURE; not executed in "
+                        f"the last {alert['hours']} hours"
+                    )
             else:
-                parts.append(
-                    "Refresh-MV ALERT: status FAILURE; not executed in "
-                    f"the last {alert['hours']} hours"
-                )
+                parts.append(f"RefreshMV alert: {alert_type}")
         if compact:
             lines.append(f"\n{name} — {target['status'].upper()}: " + " | ".join(parts))
         else:
@@ -569,13 +585,13 @@ def _rman_backup_alerts(connection_name: str) -> list[dict[str, Any]]:
 
 
 def _spain_refresh_mv_alerts() -> list[dict[str, Any]]:
-    """Return Spain refresh_mv.py errors from the last 48 hours only."""
+    """Return Spain refresh errors, stuck workers, and backlog alerts."""
     status = inspect_saved_sync_process_status(
         "es_db2_orclsp_sys", history_days=2
     )
     recent_runs = list(status.get("recent_runs", []))
     alerts: list[dict[str, Any]] = []
-    for worker in status.get("stuck_workers", []):
+    for worker in status.get("stuck_workers", [])[:5]:
         alerts.append({
             "type": "refresh_mv_stuck",
             "site": worker.get("site"),
@@ -586,10 +602,16 @@ def _spain_refresh_mv_alerts() -> list[dict[str, Any]]:
             "seconds_in_wait": worker.get("seconds_in_wait"),
             "sql_id": worker.get("sql_id"),
         })
-        if len(alerts) == 5:
-            return alerts
     for site_name, entry in (status.get("backlog") or {}).items():
-        if isinstance(entry, dict) and site_backlog.is_breach(entry):
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("error"):
+            alerts.append({
+                "type": "refresh_mv_backlog_check_failed",
+                "site": site_name,
+                "error": entry["error"],
+            })
+        elif site_backlog.is_breach(entry):
             alerts.append({
                 "type": "refresh_mv_backlog_breach",
                 "site": site_name,
@@ -598,9 +620,9 @@ def _spain_refresh_mv_alerts() -> list[dict[str, Any]]:
                 "serial_match": entry.get("serial_match"),
                 "rf_conflict": entry.get("rf_conflict"),
                 "oldest": entry.get("oldest"),
+                "as_of": entry.get("as_of"),
             })
-            if len(alerts) == 5:
-                return alerts
+    error_count = 0
     for run in recent_runs:
         if str(run.get("state") or "").upper() != "ERROR":
             continue
@@ -615,8 +637,9 @@ def _spain_refresh_mv_alerts() -> list[dict[str, Any]]:
             "ended_at": run.get("ended_at"),
             "error": error_text,
         })
-        if len(alerts) == 5:
-            return alerts
+        error_count += 1
+        if error_count == 5:
+            break
     if not recent_runs and not alerts:
         return [{
             "type": "refresh_mv_not_executed",
@@ -1908,12 +1931,12 @@ def inspect_local_rag_database() -> dict[str, Any]:
 
 @mcp.tool()
 def ingest_local_rag_markdown(path: str = "local_rag") -> dict[str, Any]:
-    """Ingest Markdown files into the repository PostgreSQL RAG through its CLI."""
+    """Ingest a Markdown or Python source file, or directory, into the local RAG."""
     source = (REPOSITORY_ROOT / path).resolve()
     if REPOSITORY_ROOT not in source.parents and source != REPOSITORY_ROOT:
         raise ValueError("path must remain inside the repository")
-    if source.is_file() and source.suffix.lower() != ".md":
-        raise ValueError("path must be a Markdown file or directory")
+    if source.is_file() and source.suffix.lower() not in {".md", ".py"}:
+        raise ValueError("path must be a Markdown or Python file or directory")
     if not source.exists():
         raise ValueError(f"path does not exist: {path}")
     command = [sys.executable, str(REPOSITORY_ROOT / "local_rag" / "rag.py"), "ingest", str(source)]
@@ -2852,11 +2875,17 @@ def inspect_saved_sync_process_status(connection_name: str, history_days: int = 
             ]
         latest_state = recent_runs[0]["state"].upper() if recent_runs and recent_runs[0]["state"] else None
         stuck_workers = [worker for worker in active_workers if worker.get("stuck")]
-        try:
-            with connection.cursor() as backlog_cursor:
-                backlog = site_backlog.fetch_all_backlogs(backlog_cursor)
-        except Exception as exc:
-            backlog = {site: {"site": site, "staging": 0, "eligible": 0, "serial_match": 0, "rf_conflict": 0, "oldest": None, "error": type(exc).__name__} for site in site_backlog.SITE_STAGING_TABLES}
+        backlog = {}
+        for site in site_backlog.SITE_STAGING_TABLES:
+            try:
+                with connection.cursor() as backlog_cursor:
+                    backlog[site] = site_backlog.fetch_site_backlog(backlog_cursor, site)
+            except Exception as exc:
+                backlog[site] = {
+                    "site": site, "staging": None, "eligible": None,
+                    "serial_match": None, "rf_conflict": None, "oldest": None,
+                    "as_of": None, "error": type(exc).__name__,
+                }
         sites: dict[str, dict[str, object]] = {}
         for worker in active_workers:
             site_name = worker.get("site") or "unknown"
@@ -5118,25 +5147,17 @@ def create_saved_oracle_index(
                         f"Identical index {safe_owner}.{existing_name} already exists on "
                         f"{safe_owner}.{safe_table}."
                     )
-            try:
-                cursor.execute(
-                    f"create index {safe_owner}.{safe_index} on {safe_owner}.{safe_table} "
-                    f"({', '.join(safe_columns)}) online"
-                )
-            except oracledb.DatabaseError as exc:
-                error = exc.args[0]
-                if getattr(error, "code", None) != 439:
-                    raise
-                cursor.execute(
-                    f"create index {safe_owner}.{safe_index} on {safe_owner}.{safe_table} "
-                    f"({', '.join(safe_columns)})"
-                )
+            cursor.execute(
+                f"create index {safe_owner}.{safe_index} on {safe_owner}.{safe_table} "
+                f"({', '.join(safe_columns)}) online"
+            )
         return {
             "connection": connection_name,
             "owner": safe_owner,
             "table_name": safe_table,
             "index_name": safe_index,
             "columns": safe_columns,
+            "online": True,
             "status": "created",
         }
     finally:

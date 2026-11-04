@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import json
 import re
+import sqlite3
 from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -127,6 +128,13 @@ class ServerTests(unittest.TestCase):
             result = server.inspect_local_rag_database()
         connect.assert_called_once_with("postgresql://safe-user-environment")
         self.assertTrue(result["healthy"])
+
+    def test_rag_ingestion_accepts_python_source(self):
+        completed = mock.Mock(returncode=0, stdout="ingested", stderr="")
+        with mock.patch.object(server.subprocess, "run", return_value=completed) as run:
+            result = server.ingest_local_rag_markdown("myoracle_mcp/site_backlog.py")
+        self.assertTrue(result["path"].endswith("site_backlog.py"))
+        self.assertEqual(run.call_args.args[0][-1], result["path"])
 
     def test_list_local_postgres_databases_uses_saved_postgresql_connection(self):
         document = {
@@ -466,6 +474,14 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(result["status"], "running")
         self.assertEqual(result["stuck_workers"], [])
 
+        with mock.patch.object(server, "_connect_saved_oracle", return_value=_FakeConnection(result_sets)), \
+             mock.patch.object(server.site_backlog, "fetch_site_backlog",
+                               side_effect=[RuntimeError("query failed"), {"eligible": 1}, {"eligible": 2}, {"eligible": 3}]):
+            result = server.inspect_saved_sync_process_status("es_db2_orclsp_sys")
+        self.assertIsNone(result["backlog"]["Ofakim"]["eligible"])
+        self.assertEqual(result["backlog"]["Ofakim"]["error"], "RuntimeError")
+        self.assertEqual(result["backlog"]["Hungary"]["eligible"], 1)
+
     def test_site_backlog_query_has_no_queue_gate_and_guards_both_keys(self):
         import site_backlog
 
@@ -484,6 +500,69 @@ class ServerTests(unittest.TestCase):
         self.assertTrue(site_backlog.is_breach({"eligible": 1, "oldest": "2026-11-03 00:00:00"}, now))
         self.assertFalse(site_backlog.is_breach({"eligible": 99, "oldest": None}, now))
         self.assertFalse(site_backlog.is_breach({"eligible": 0, "oldest": None}, now))
+        self.assertFalse(site_backlog.is_breach({"eligible": 0, "oldest": "2020-01-01"}, now))
+        self.assertFalse(site_backlog.is_breach({"eligible": 1, "oldest": "2026-11-03", "as_of": "2026-11-03 12:00:00"}))
+        self.assertTrue(site_backlog.is_breach({"eligible": 1, "oldest": "2026-11-03", "as_of": "2026-11-05 00:00:00"}))
+
+    def test_site_backlog_query_counts_only_eligible_oldest_and_allows_null_rf(self):
+        import site_backlog
+
+        connection = sqlite3.connect(":memory:")
+        self.addCleanup(connection.close)
+        connection.execute("attach database ':memory:' as TRANSFER_USER")
+        connection.execute("attach database ':memory:' as ATE_RESULTS")
+        connection.execute("create table TRANSFER_USER.HUNGARY_UUT_ATTRUBUTES "
+                           "(UUT_SERIAL_NUMBER text, RF_NUMBER text, LAST_TEST_DATE text)")
+        connection.execute("create table ATE_RESULTS.GLOBAL_UUT_ATTRIBUTES "
+                           "(UUT_SERIAL_NUMBER text, RF_NUMBER text)")
+        connection.executemany("insert into ATE_RESULTS.GLOBAL_UUT_ATTRIBUTES values (?, ?)",
+                               [("matched", "rf-1"), ("elsewhere", "rf-2")])
+        connection.executemany("insert into TRANSFER_USER.HUNGARY_UUT_ATTRUBUTES values (?, ?, ?)",
+                               [("matched", "other", "2000-01-01"), ("conflict", "rf-2", "2001-01-01"),
+                                ("new", None, "2026-11-04"), ("new2", "rf-3", "2026-11-03")])
+        sql, _ = site_backlog.backlog_sql("Hungary")
+        row = connection.execute(sql.replace("sysdate", "'2026-11-05'" )).fetchone()
+        self.assertEqual(row, (4, 2, 1, 1, "2026-11-03", "2026-11-05"))
+        connection.execute("delete from TRANSFER_USER.HUNGARY_UUT_ATTRUBUTES where UUT_SERIAL_NUMBER in ('new', 'new2')")
+        self.assertEqual(connection.execute(sql.replace("sysdate", "'2026-11-05'")).fetchone(),
+                         (2, 0, 1, 1, None, "2026-11-05"))
+
+    def test_site_backlog_date_parsing(self):
+        import site_backlog
+
+        for value in ("2026-11-03", "2026-11-03 12:34:56", "2026-11-03T12:34:56"):
+            self.assertIsNotNone(site_backlog._parse_oldest(value))
+        self.assertIsNone(site_backlog._parse_oldest("invalid"))
+        self.assertIsNone(site_backlog.backlog_age_hours("2026-11-03T12:00:00+00:00", datetime(2026, 11, 5)))
+
+    def test_backlog_alerts_survive_stuck_worker_cap_and_report_query_errors(self):
+        status = {
+            "recent_runs": [{"state": "End"}],
+            "stuck_workers": [{"site": str(i)} for i in range(6)],
+            "backlog": {
+                "Hungary": {"eligible": 100},
+                "RH": {"eligible": None, "error": "DatabaseError"},
+            },
+        }
+        with mock.patch.object(server, "inspect_saved_sync_process_status", return_value=status):
+            alerts = server._spain_refresh_mv_alerts()
+        self.assertEqual(sum(alert["type"] == "refresh_mv_stuck" for alert in alerts), 5)
+        self.assertIn({"type": "refresh_mv_backlog_check_failed", "site": "RH", "error": "DatabaseError"}, alerts)
+        self.assertTrue(any(alert["type"] == "refresh_mv_backlog_breach" for alert in alerts))
+
+    def test_daily_notification_renders_all_backlog_alerts_in_compact_mode(self):
+        alerts = ([{"type": "refresh_mv_stuck", "site": str(i)} for i in range(5)] +
+                  [{"type": "refresh_mv_backlog_breach", "site": "Hungary", "eligible": 123},
+                   {"type": "refresh_mv_backlog_check_failed", "site": "RH", "error": "DatabaseError"}])
+        report = {"ok_count": 0, "target_count": 1, "issue_count": 1,
+                  "minimum_free_percent": 15, "targets": [{
+                      "connection_name": "Spain", "status": "issues", "refresh_mv_alerts": alerts,
+                  }]}
+        for compact in (False, True):
+            text = "\n".join(server._daily_routine_notification_lines(report, compact=compact))
+            self.assertIn("RefreshMV backlog: Hungary eligible=123", text)
+            self.assertIn("RefreshMV backlog check failed: RH DatabaseError", text)
+            self.assertIn("RefreshMV stuck", text)
 
     def test_spain_refresh_mv_alerts_reports_backlog_breach(self):
         with mock.patch.object(
@@ -2499,6 +2578,29 @@ class PackageOverloadTests(unittest.TestCase):
 
 
 class SiteIndexMaintenanceTests(unittest.TestCase):
+    def test_index_tools_do_not_fall_back_to_offline(self):
+        import site_index_maintenance
+
+        cursor = mock.MagicMock()
+        cursor.execute.side_effect = RuntimeError("ORA-00439: online index unsupported")
+        with mock.patch.object(site_index_maintenance, "_identical_index_exists", return_value=False), \
+             mock.patch.object(site_index_maintenance, "_index_name_exists", return_value=False):
+            with self.assertRaisesRegex(RuntimeError, "ORA-00439"):
+                site_index_maintenance._create_index(cursor, "ATE_RESULTS", "T", "IDX_T", ["C"])
+        self.assertEqual(cursor.execute.call_count, 1)
+        self.assertTrue(cursor.execute.call_args.args[0].endswith(" ONLINE"))
+
+        connection = mock.MagicMock()
+        cursor = connection.cursor.return_value.__enter__.return_value
+        cursor.fetchone.return_value = None
+        cursor.__iter__.return_value = []
+        cursor.execute.side_effect = [None, None, RuntimeError("ORA-00439: online index unsupported")]
+        with mock.patch.object(server, "_connect_saved_oracle", return_value=connection):
+            with self.assertRaisesRegex(RuntimeError, "ORA-00439"):
+                server.create_saved_oracle_index("PH", "ATE_RESULTS", "T", "IDX_T", ["C"], True)
+        self.assertEqual(cursor.execute.call_count, 3)
+        self.assertTrue(cursor.execute.call_args.args[0].endswith(" online"))
+
     def test_requires_confirmation(self):
         import site_index_maintenance
 

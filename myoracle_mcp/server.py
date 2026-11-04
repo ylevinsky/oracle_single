@@ -2854,8 +2854,8 @@ def inspect_saved_sync_process_status(connection_name: str, history_days: int = 
         stuck_workers = [worker for worker in active_workers if worker.get("stuck")]
         try:
             backlog = site_backlog.fetch_all_backlogs(cursor)
-        except Exception:
-            backlog = {site: {"site": site, "staging": 0, "eligible": 0, "serial_match": 0, "rf_conflict": 0, "oldest": None} for site in site_backlog.SITE_STAGING_TABLES}
+        except Exception as exc:
+            backlog = {site: {"site": site, "staging": 0, "eligible": 0, "serial_match": 0, "rf_conflict": 0, "oldest": None, "error": type(exc).__name__} for site in site_backlog.SITE_STAGING_TABLES}
         sites: dict[str, dict[str, object]] = {}
         for worker in active_workers:
             site_name = worker.get("site") or "unknown"

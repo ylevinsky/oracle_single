@@ -43,12 +43,14 @@ import transfer_queue
 import ph_remaining_copy
 import hungary_targeted_copy
 import site_force_refresh
+import site_index_maintenance
 import remote_copy
 import exact_table_stats
 import schema_datapump
 import schema_sql_copy
 import package_overloads
 import scheduled_task_logon
+import site_backlog
 
 
 def _ensure_windows_programdata() -> None:
@@ -586,6 +588,19 @@ def _spain_refresh_mv_alerts() -> list[dict[str, Any]]:
         })
         if len(alerts) == 5:
             return alerts
+    for site_name, entry in (status.get("backlog") or {}).items():
+        if isinstance(entry, dict) and site_backlog.is_breach(entry):
+            alerts.append({
+                "type": "refresh_mv_backlog_breach",
+                "site": site_name,
+                "eligible": entry.get("eligible"),
+                "staging": entry.get("staging"),
+                "serial_match": entry.get("serial_match"),
+                "rf_conflict": entry.get("rf_conflict"),
+                "oldest": entry.get("oldest"),
+            })
+            if len(alerts) == 5:
+                return alerts
     for run in recent_runs:
         if str(run.get("state") or "").upper() != "ERROR":
             continue
@@ -2837,6 +2852,10 @@ def inspect_saved_sync_process_status(connection_name: str, history_days: int = 
             ]
         latest_state = recent_runs[0]["state"].upper() if recent_runs and recent_runs[0]["state"] else None
         stuck_workers = [worker for worker in active_workers if worker.get("stuck")]
+        try:
+            backlog = site_backlog.fetch_all_backlogs(cursor)
+        except Exception:
+            backlog = {site: {"site": site, "staging": 0, "eligible": 0, "serial_match": 0, "rf_conflict": 0, "oldest": None} for site in site_backlog.SITE_STAGING_TABLES}
         sites: dict[str, dict[str, object]] = {}
         for worker in active_workers:
             site_name = worker.get("site") or "unknown"
@@ -2878,6 +2897,7 @@ def inspect_saved_sync_process_status(connection_name: str, history_days: int = 
             "status": status,
             "stuck_workers": stuck_workers,
             "sites": sites,
+            "backlog": backlog,
             "active_workers": active_workers,
             "active_long_operations": active_long_operations,
             "recent_runs": recent_runs,
@@ -5054,6 +5074,7 @@ def create_saved_oracle_index(
     This is a persistent DDL operation. It permits only simple Oracle
     identifiers, requires explicit confirmation, and refuses an existing
     identical index definition. It performs no DML, drop, or replacement.
+    Indexes are built with the ONLINE option.
     """
     identifier = re.compile(r"[A-Za-z][A-Za-z0-9_$#]{0,29}")
     if not confirmed:
@@ -5096,10 +5117,19 @@ def create_saved_oracle_index(
                         f"Identical index {safe_owner}.{existing_name} already exists on "
                         f"{safe_owner}.{safe_table}."
                     )
-            cursor.execute(
-                f"create index {safe_owner}.{safe_index} on {safe_owner}.{safe_table} "
-                f"({', '.join(safe_columns)})"
-            )
+            try:
+                cursor.execute(
+                    f"create index {safe_owner}.{safe_index} on {safe_owner}.{safe_table} "
+                    f"({', '.join(safe_columns)}) online"
+                )
+            except oracledb.DatabaseError as exc:
+                error = exc.args[0]
+                if getattr(error, "code", None) != 439:
+                    raise
+                cursor.execute(
+                    f"create index {safe_owner}.{safe_index} on {safe_owner}.{safe_table} "
+                    f"({', '.join(safe_columns)})"
+                )
         return {
             "connection": connection_name,
             "owner": safe_owner,
@@ -5110,6 +5140,26 @@ def create_saved_oracle_index(
         }
     finally:
         connection.close()
+
+@mcp.tool()
+def apply_proposed_site_indexes(
+    connection_name: str,
+    confirmed: bool,
+    skip_test_owners: bool = True,
+) -> dict[str, object]:
+    """Create missing site index recommendations on a saved Oracle target.
+
+    Applies station-template indexes (STEP_PARENT, UUT serial/date, numeric array
+    duplicate key), hub/report/transfer indexes, and foreign-key supporting
+    indexes discovered from data dictionary metadata. All new indexes use ONLINE
+    builds. Requires confirmed=true.
+    """
+    return site_index_maintenance.apply_proposed_site_indexes(
+        connection_name,
+        confirmed,
+        _connect_saved_oracle,
+        skip_test_owners=skip_test_owners,
+    )
 
 @mcp.tool()
 def create_saved_transfer_products_queue(connection_name: str, confirmed: bool = False) -> dict[str, object]:

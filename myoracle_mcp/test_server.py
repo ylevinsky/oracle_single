@@ -466,6 +466,44 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(result["status"], "running")
         self.assertEqual(result["stuck_workers"], [])
 
+    def test_site_backlog_query_has_no_queue_gate_and_guards_both_keys(self):
+        import site_backlog
+
+        for site_name in site_backlog.SITE_STAGING_TABLES:
+            sql, _ = site_backlog.backlog_sql(site_name)
+            self.assertNotIn("TRANSFER_PRODUCTS_QUEUE", sql)
+            self.assertIn("g.UUT_SERIAL_NUMBER = s.UUT_SERIAL_NUMBER", sql)
+            self.assertIn("g2.RF_NUMBER = s.RF_NUMBER", sql)
+
+    def test_site_backlog_breach_thresholds(self):
+        import site_backlog
+
+        now = datetime(2026, 11, 5, 0, 0, 0)
+        self.assertTrue(site_backlog.is_breach({"eligible": 100, "oldest": None}, now))
+        self.assertTrue(site_backlog.is_breach({"eligible": 7272, "oldest": "2026-10-27 05:33:58"}, now))
+        self.assertTrue(site_backlog.is_breach({"eligible": 1, "oldest": "2026-11-03 00:00:00"}, now))
+        self.assertFalse(site_backlog.is_breach({"eligible": 99, "oldest": None}, now))
+        self.assertFalse(site_backlog.is_breach({"eligible": 0, "oldest": None}, now))
+
+    def test_spain_refresh_mv_alerts_reports_backlog_breach(self):
+        with mock.patch.object(
+            server,
+            "inspect_saved_sync_process_status",
+            return_value={
+                "recent_runs": [{"state": "End", "started_at": "s", "ended_at": "e", "input": "Hungary:Ok;", "output": None}],
+                "stuck_workers": [],
+                "backlog": {
+                    "Hungary": {"site": "Hungary", "staging": 7274, "eligible": 7272, "serial_match": 2, "rf_conflict": 0, "oldest": "2026-10-27 05:33:58"},
+                    "Ofakim": {"site": "Ofakim", "staging": 0, "eligible": 0, "serial_match": 0, "rf_conflict": 0, "oldest": None},
+                },
+            },
+        ):
+            alerts = server._spain_refresh_mv_alerts()
+        breach = [alert for alert in alerts if alert.get("type") == "refresh_mv_backlog_breach"]
+        self.assertTrue(breach)
+        self.assertEqual(breach[0]["site"], "Hungary")
+        self.assertEqual(breach[0]["eligible"], 7272)
+
     def test_drop_saved_materialized_view_requires_confirmation(self):
         with self.assertRaises(ValueError):
             server.drop_saved_materialized_view(
@@ -2458,6 +2496,16 @@ class PackageOverloadTests(unittest.TestCase):
         self.assertIn("PROCEDURE KEEP_ME", text)
         self.assertIn("PROCEDURE AFTER_ME", text)
         self.assertIn("b varchar2", text)
+
+
+class SiteIndexMaintenanceTests(unittest.TestCase):
+    def test_requires_confirmation(self):
+        import site_index_maintenance
+
+        with self.assertRaisesRegex(ValueError, "confirmed must be true"):
+            site_index_maintenance.apply_proposed_site_indexes(
+                "PH", False, lambda name: None
+            )
 
 
 if __name__ == "__main__":

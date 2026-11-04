@@ -64,7 +64,11 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
   switches to a compact one-line-per-target rendering so every problem is still
   delivered instead of dropping the notification.
   For Spain (`es_db2_orclsp_sys`) it also includes up to five `refresh_mv.py`
-  `DAILY_TRANSFER` errors from the last 48 hours, or a failure status when no
+  `DAILY_TRANSFER` errors from the last 48 hours, a `refresh_mv_backlog_breach`
+  alert for any site whose eligible staging backlog reaches 100 rows or 24 hours
+  of age (eligible = serial and RF both absent from `GLOBAL_UUT_ATTRIBUTES`,
+  with serial-match/RF-conflict counts and oldest `LAST_TEST_DATE`), or a
+  failure status when no
   execution is recorded in that period. Generic job and refresh statuses remain
   outside the report.
   A saved Oracle target that cannot be reached is reported as not connected.
@@ -101,6 +105,10 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
   on a saved site, copies current `TRANSFER_PRODUCTS_LOG` rows into it once, and
   updates the insert trigger to write the log and the queue. The log stays
   insert-only. It requires `confirmed=true`.
+- `apply_proposed_site_indexes`: creates missing station-template, hub/transfer,
+  report, and foreign-key supporting indexes from data dictionary metadata.
+  New indexes are built ONLINE when the database supports it; on Standard Edition
+  (ORA-00439) the same definition is created without ONLINE. Requires `confirmed=true`.
 - `enqueue_saved_untransferred_products`: inserts `LAST_UUT_NAME` into the
   transfer log and queue, the same two writes the insert trigger performs.
   Only names present in `TRANSFER_PRODUCTS` and absent from both the log and

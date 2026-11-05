@@ -1,7 +1,7 @@
 # Sync backlog review fixes — 2026-11-05
 
 - Request: Fix the reviewed Oracle MCP synchronization backlog, alerting, and index-maintenance issues.
-- Target: Local `myoracle_mcp` server; no production database writes or queries were performed.
+- Target: Local `myoracle_mcp` server and ORCL sync script; no production database writes were performed. The follow-up used read-only Oracle metadata queries.
 - Reported failures: A clean checkout lacked the imported `site_index_maintenance.py`; ineligible old staging rows could cause false age breaches; query errors were returned as zero counts without an alert; unsupported ONLINE index builds could silently retry offline after ORA-00439.
 - Changes: Track the missing module; aggregate eligible backlog and its oldest date in one staging query, compare age against Oracle SYSDATE, emit per-site backlog-check-failed alerts with unknown counts, and cap stuck/error alerts independently. The daily notification formatter previously treated every non-error alert as a missing-run alert and could raise `KeyError: 'hours'`; it now renders stuck and backlog alerts explicitly, including in compact mode. Both index tools now fail rather than retry offline. The existing local RAG ingestion tool accepts Python sources as well as Markdown.
 - Validation: Local unit tests exercise the backlog classification and NULL RF behavior using SQLite, error reporting, alert caps, and online-only index failure. No live Oracle query or execution plan was verified. Indexes on both global serial and RF columns remain a deployment prerequisite to verify.

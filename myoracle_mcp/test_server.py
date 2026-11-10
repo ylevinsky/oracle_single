@@ -17,6 +17,7 @@ import public_database_link
 import clone_time
 import saved_query
 import schema_movement
+import schema_movement_new
 import ephemeral_oracle
 import table_timestamps
 import readonly_user
@@ -303,6 +304,67 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(result["target_links_to_source"][0]["db_link"], "FLEX")
         self.assertEqual(result["source_movement_jobs"][0]["job_name"], "PUSH_DWH")
         self.assertEqual(result["materialized_views_using_a_database_link"][0]["mview_name"], "UUT_RESULT")
+
+    def test_schema_movement_new_inventory_has_no_datapump_jobs(self):
+        cursor = mock.MagicMock()
+        cursor.execute = mock.MagicMock()
+        cursor.fetchall = mock.MagicMock(return_value=[])
+        cursor.__iter__ = mock.MagicMock(return_value=iter([]))
+        inventory = schema_movement_new.collect_inventory(cursor)
+        self.assertNotIn("datapump_jobs", inventory)
+        self.assertEqual(inventory["movement_method"], "python_dbms_metadata_sql")
+
+    def test_schema_movement_new_comparison_uses_python_copy_method(self):
+        source = {
+            "schemas": {"A": {"table_count": 1, "statistics_num_rows": 1, "segment_bytes": 1}},
+            "database_links": [],
+            "materialized_views": [],
+            "scheduler_jobs": [
+                {
+                    "owner": "COPY_SCHEMA",
+                    "job_name": "SQL_COPY",
+                    "job_action": "begin schema_sql_copy.copy_schema(); end;",
+                }
+            ],
+        }
+        target = {
+            "schemas": {"A": {"table_count": 1, "statistics_num_rows": 1, "segment_bytes": 1}},
+            "database_links": [],
+            "materialized_views": [],
+            "scheduler_jobs": [],
+        }
+        result = schema_movement_new.compare_inventories(source, target, ["source"], ["target"])
+        self.assertEqual(result["copy_method"], "python_dbms_metadata_sql")
+        self.assertNotIn("source_datapump_jobs", result)
+        self.assertEqual(result["source_movement_jobs"][0]["job_name"], "SQL_COPY")
+
+    def test_schema_movement_new_copy_requires_confirmation(self):
+        source = _SqlCopyDatabase(["S1", "S2"])
+        target = _SqlCopyDatabase([])
+        result = schema_movement_new.copy_schemas(
+            "SRC",
+            "DST",
+            ["S1", "S2"],
+            confirmed=False,
+            tablespace_remap={},
+            connect=lambda name: {"SRC": source, "DST": target}[name],
+        )
+        self.assertEqual(result["status"], "not_confirmed")
+        self.assertEqual(result["schemas"], ["S1", "S2"])
+
+    def test_schema_movement_new_copy_stops_when_target_has_schema(self):
+        source = _SqlCopyDatabase(["OPDI2_SYSTEM"])
+        target = _SqlCopyDatabase(["OPDI2_SYSTEM"])
+        result = schema_movement_new.copy_schemas(
+            "RH",
+            "HUN",
+            ["OPDI2_SYSTEM"],
+            confirmed=True,
+            tablespace_remap={"RH_TBS": "HUNG_TBS"},
+            connect=lambda name: {"RH": source, "HUN": target}[name],
+        )
+        self.assertEqual(result["status"], "stopped")
+        self.assertEqual(result["existing_on_target"], ["OPDI2_SYSTEM"])
 
     def test_copy_schema_artifacts_are_excluded_from_daily_job_alerts(self):
         self.assertTrue(server._is_copy_schema_job({"owner": "COPY_SCHEMA"}))

@@ -19,6 +19,7 @@ import saved_query
 import schema_movement
 import schema_movement_new
 import schema_movement_process
+import codex_spain_setup
 import ephemeral_oracle
 import table_timestamps
 import readonly_user
@@ -387,6 +388,27 @@ class ServerTests(unittest.TestCase):
         names = [path.name for path in schema_movement_process.bundle_paths()]
         self.assertIn("schema_movement_new.py", names)
         self.assertIn("schema_movement_process.py", names)
+
+    def test_codex_spain_setup_requires_confirmation(self):
+        result = codex_spain_setup.run_codex_spain_setup(
+            "x" * 24,
+            confirmed=False,
+        )
+        self.assertEqual(result["status"], "not_confirmed")
+        self.assertIn("stop_cursor_processes", result["actions"])
+
+    def test_codex_spain_setup_redacts_api_key_in_errors(self):
+        secret = "x" * 24
+        text = codex_spain_setup._redact(f"boom {secret}", secret)
+        self.assertNotIn(secret, text)
+
+    def test_codex_spain_remote_command_does_not_embed_key(self):
+        command = codex_spain_setup.build_remote_command(
+            r"C:\ORCL\codex_setup\codex_api_key.txt",
+            r"C:\git\oracle_single\.codex\config.toml",
+        )
+        self.assertIn("codex_spain_setup.ps1", command)
+        self.assertNotIn("sk-", command)
 
     def test_schema_movement_process_deploy_calls_upload(self):
         uploaded: list[tuple] = []

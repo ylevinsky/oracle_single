@@ -46,6 +46,7 @@ import site_force_refresh
 import site_index_maintenance
 import remote_copy
 import exact_table_stats
+import codex_spain_setup
 import schema_datapump
 import schema_sql_copy
 import package_overloads
@@ -1008,6 +1009,33 @@ def upload_files_to_saved_host(
         "uploaded": result["uploaded"],
         "seconds": result["seconds"],
     }
+
+
+@mcp.tool()
+def install_codex_remove_cursor_on_spain(
+    codex_api_key: str = "",
+    confirmed: bool = False,
+    connection_name: str = codex_spain_setup.SPAIN_CONNECTION,
+    repo_codex_config: str = r"C:\git\oracle_single\.codex\config.toml",
+) -> dict[str, Any]:
+    """Install Codex on the Spain host, apply your API key, and remove Cursor.
+
+    Stops ``Cursor.exe`` and uninstalls the Cursor app via winget when present.
+    Installs Codex non-interactively, sets the per-user ``CODEX_API_KEY``, and
+    copies ``oracle_single/.codex/config.toml``. Does not reboot the server or
+    restart Oracle. Pass ``codex_api_key`` or set ``CODEX_API_KEY`` in the MCP
+    server environment. ``confirmed`` must be true before any remote change.
+    Credentials and the API key are not returned.
+    """
+    key = str(codex_api_key or os.environ.get("CODEX_API_KEY", "")).strip()
+    if not key:
+        raise ValueError("pass codex_api_key or set CODEX_API_KEY in the MCP server environment")
+    return codex_spain_setup.run_codex_spain_setup(
+        key,
+        connection_name=connection_name,
+        confirmed=confirmed,
+        repo_codex_config=repo_codex_config,
+    )
 
 
 def _validated_windows_path(path: str, label: str) -> str:

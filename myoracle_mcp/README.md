@@ -193,6 +193,18 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
   already exists on the target. Use this when Data Pump refuses the dump
   because the target timezone file is older. Pass `confirmed=true` to create
   the schema. The source password verifier is reused and never returned.
+- `install_codex_remove_cursor_on_spain`: SSH to the Spain Repair Center,
+  install Codex (no reboot), set `CODEX_API_KEY` for the `brillix` user,
+  uninstall Cursor, and copy `.codex/config.toml`. Pass `codex_api_key` or set
+  `CODEX_API_KEY` in the MCP environment. Requires `confirmed=true`. Standalone:
+  `python codex_spain_setup.py --from-env --confirmed` from `myoracle_mcp`.
+- Standalone Spain schema process (`schema_movement_process.py`): run from
+  `myoracle_mcp` with saved `.db/connections.json`. `copy` defaults to Spain
+  (`es_db2_orclsp_sys`) and remaps site tablespaces to `SPAIN_TBS`;
+  `deploy-to-spain` uploads the Python bundle to `C:\ORCL\schema_movement` on
+  the Repair Center host. Example:
+  `python schema_movement_process.py copy --source RH --schema ATE_RESULTS`
+  (plan only) and add `--confirmed` to apply.
 - `sync_saved_package_overloads`: copies every overload of one packaged
   procedure from a source database into the same package on a target. The
   other procedures in the target package stay in place. Pass `confirmed=true`

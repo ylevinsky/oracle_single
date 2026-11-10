@@ -12,3 +12,11 @@
 - Register with Hermes: `temp_scripts\add-hermes-openai-pool-key.ps1` (reads the target, runs `hermes auth add openai-api`).
 - Verify: `hermes auth list openai-api`.
 - No API key values are stored in this repository.
+
+## Hermes ↔ workspace MCP (Windows)
+
+- Sources: `workspace-agent\.mcp.json` (preferred: `super-mcp` + `myoracle`) or `.cursor\mcp.json`.
+- Import: from repo root, `.\temp_scripts\register-workspace-mcp-for-hermes.ps1` (optional `-Test` runs `hermes mcp test` on each).
+- Manual: `python temp_scripts\sync_mcp_servers_to_hermes.py --source workspace-agent\.mcp.json`
+- Hermes config target: `%USERPROFILE%\.hermes\config.yaml` key `mcp_servers`.
+- Verify: `hermes mcp list`, then `hermes mcp test super-mcp` and `hermes mcp test myoracle`; start a new `hermes chat` session so tools load.

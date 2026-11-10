@@ -18,6 +18,7 @@ import clone_time
 import saved_query
 import schema_movement
 import schema_movement_new
+import schema_movement_process
 import ephemeral_oracle
 import table_timestamps
 import readonly_user
@@ -365,6 +366,43 @@ class ServerTests(unittest.TestCase):
         )
         self.assertEqual(result["status"], "stopped")
         self.assertEqual(result["existing_on_target"], ["OPDI2_SYSTEM"])
+
+    def test_schema_movement_spain_alias_and_tablespace_remap(self):
+        self.assertEqual(
+            schema_movement_new.resolve_connection_name("Spain"),
+            schema_movement_new.SPAIN_CONNECTION,
+        )
+        remap = schema_movement_new.tablespace_remap_for_spain({"RH_TBS": "USERS"})
+        self.assertEqual(remap["HUNG_TBS"], "SPAIN_TBS")
+        self.assertEqual(remap["RH_TBS"], "USERS")
+
+    def test_schema_movement_process_copy_parser_defaults_to_spain(self):
+        args = schema_movement_process.build_parser().parse_args(
+            ["copy", "--source", "RH", "--schema", "ATE_RESULTS"]
+        )
+        self.assertIsNone(args.target)
+        self.assertTrue(schema_movement_process.copy_targets_spain(args))
+
+    def test_schema_movement_process_bundle_lists_modules(self):
+        names = [path.name for path in schema_movement_process.bundle_paths()]
+        self.assertIn("schema_movement_new.py", names)
+        self.assertIn("schema_movement_process.py", names)
+
+    def test_schema_movement_process_deploy_calls_upload(self):
+        uploaded: list[tuple] = []
+
+        def fake_upload(host, port, username, password, sources, remote_directory):
+            uploaded.append((host, remote_directory, [source.name for source in sources]))
+            return {"seconds": 0.1}
+
+        with mock.patch("server._read_connection", return_value={"host": "sp-host"}), mock.patch(
+            "server._ssh_settings", return_value=("brillix", "SSH/sp", 22)
+        ), mock.patch("server._read_windows_credential", return_value="secret"):
+            result = schema_movement_process.deploy_bundle_to_spain(upload=fake_upload)
+
+        self.assertEqual(result["connection_name"], schema_movement_new.SPAIN_CONNECTION)
+        self.assertEqual(result["remote_directory"], schema_movement_process.DEFAULT_SPAIN_REMOTE_DIR)
+        self.assertTrue(uploaded)
 
     def test_copy_schema_artifacts_are_excluded_from_daily_job_alerts(self):
         self.assertTrue(server._is_copy_schema_job({"owner": "COPY_SCHEMA"}))

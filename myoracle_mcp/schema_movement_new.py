@@ -11,6 +11,31 @@ from typing import Any, Callable
 
 import schema_sql_copy
 from schema_datapump import normalize_schemas
+
+SPAIN_CONNECTION = "es_db2_orclsp_sys"
+SPAIN_CONNECTION_ALIASES = frozenset({"spain", "es_db2_orclsp_sys", "orclsp"})
+
+SITE_TABLESPACE_TO_SPAIN_TBS: dict[str, str] = {
+    "RH_TBS": "SPAIN_TBS",
+    "HUNG_TBS": "SPAIN_TBS",
+    "OFAKIM_TBS": "SPAIN_TBS",
+}
+
+
+def resolve_connection_name(connection_name: str) -> str:
+    """Map friendly names such as ``Spain`` to the saved connection id."""
+    key = str(connection_name or "").strip()
+    if key.lower() == "spain":
+        return SPAIN_CONNECTION
+    return key
+
+
+def tablespace_remap_for_spain(extra: dict[str, str] | None = None) -> dict[str, str]:
+    """Return site tablespace names remapped to ``SPAIN_TBS``, with optional overrides."""
+    merged = dict(SITE_TABLESPACE_TO_SPAIN_TBS)
+    if extra:
+        merged.update(schema_sql_copy.normalize_remap(extra))
+    return merged
 from schema_movement import (  # re-export shared read-only helpers
     APPLICATION_TABLE_LIST_SQL,
     CONTAINER_SQL,
@@ -265,3 +290,26 @@ def copy_schemas(
         "objects_created": sum(int(item.get("objects_created") or 0) for item in per_schema),
         "grants_applied": sum(int(item.get("grants_applied") or 0) for item in per_schema),
     }
+
+
+def copy_schemas_to_spain(
+    source_name: str,
+    schemas: list[str],
+    *,
+    confirmed: bool,
+    connect: Callable[[str], Any],
+    tablespace_remap: dict[str, str] | None = None,
+    resume: bool = False,
+) -> dict[str, Any]:
+    """Copy schemas onto the Spain Repair Center using Python metadata/SQL only."""
+    source = resolve_connection_name(source_name)
+    result = copy_schemas(
+        source,
+        SPAIN_CONNECTION,
+        schemas,
+        confirmed=confirmed,
+        tablespace_remap=tablespace_remap_for_spain(tablespace_remap),
+        connect=connect,
+        resume=resume,
+    )
+    return {"destination": SPAIN_CONNECTION, **result}

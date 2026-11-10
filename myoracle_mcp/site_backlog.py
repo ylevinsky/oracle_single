@@ -1,10 +1,9 @@
-"""Per-site eligible staging backlog for the Spain Repair Center sync.
+"""Per-site staging reconciliation for the Spain Repair Center sync.
 
-A staging row is eligible when its serial AND its RF number are both absent
-from ``ATE_RESULTS.GLOBAL_UUT_ATTRIBUTES``. Serial matches and RF conflicts
-are classified separately so an operator can tell a true backlog from a
-duplicate-key block. The queue (``TRANSFER_PRODUCTS_QUEUE``) is deliberately
-not part of this query: it is a liveness hint, not a completeness record.
+Rows already present in the global table under the same serial and RF are
+completed even if the staging MV still contains them. Unlogged rows with no
+global key match are eligible; serial duplicates and RF conflicts remain
+visible as blocked. The queue is deliberately not part of this query.
 """
 
 from __future__ import annotations
@@ -31,15 +30,22 @@ def backlog_sql(site_name: str) -> tuple[str, dict[str, Any]]:
         raise ValueError(f"Unknown backlog site: {site_name!r}.") from exc
     sql = (
         "select counts.*, sysdate as as_of from (select count(*) as staging, "
-        "count(case when serial_match = 0 and rf_match = 0 then 1 end) as eligible, "
-        "count(case when serial_match = 1 then 1 end) as serial_match, "
-        "count(case when serial_match = 0 and rf_match = 1 then 1 end) as rf_conflict, "
-        "min(case when serial_match = 0 and rf_match = 0 then LAST_TEST_DATE end) as oldest from ("
+        "count(case when serial_match = 0 and rf_match = 0 and transferred = 0 then 1 end) as eligible, "
+        "count(case when serial_match = 1 and same_rf = 0 and transferred = 0 then 1 end) as serial_match, "
+        "count(case when serial_match = 0 and rf_match = 1 and transferred = 0 then 1 end) as rf_conflict, "
+        "count(case when same_rf = 1 and transferred = 1 then 1 end) as completed, "
+        "count(case when transferred = 1 and same_rf = 0 then 1 end) as ledger_mismatch, "
+        "min(case when serial_match = 0 and rf_match = 0 and transferred = 0 then LAST_TEST_DATE end) as oldest from ("
         "select s.LAST_TEST_DATE, "
         "case when exists (select 1 from ATE_RESULTS.GLOBAL_UUT_ATTRIBUTES g "
         "where g.UUT_SERIAL_NUMBER = s.UUT_SERIAL_NUMBER) then 1 else 0 end as serial_match, "
         "case when exists (select 1 from ATE_RESULTS.GLOBAL_UUT_ATTRIBUTES g2 "
-        "where g2.RF_NUMBER = s.RF_NUMBER) then 1 else 0 end as rf_match "
+        "where g2.RF_NUMBER = s.RF_NUMBER) then 1 else 0 end as rf_match, "
+        "case when exists (select 1 from ATE_RESULTS.GLOBAL_UUT_ATTRIBUTES g3 "
+        "where g3.UUT_SERIAL_NUMBER = s.UUT_SERIAL_NUMBER and g3.RF_NUMBER = s.RF_NUMBER) "
+        "then 1 else 0 end as same_rf, "
+        "case when exists (select 1 from TRANSFER_USER.TRANSFER_LOG l "
+        "where l.UUT_SERIAL_NUMBER = s.UUT_SERIAL_NUMBER) then 1 else 0 end as transferred "
         f"from TRANSFER_USER.{staging_table} s)) counts"
     )
     return sql, {}
@@ -98,7 +104,7 @@ def fetch_site_backlog(cursor: Any, site_name: str) -> dict[str, Any]:
     row = cursor.fetchone()
     if row is None:
         raise RuntimeError(f"Backlog query returned no result for {site_name}.")
-    staging, eligible, serial_match, rf_conflict, oldest, as_of = row
+    staging, eligible, serial_match, rf_conflict, completed, ledger_mismatch, oldest, as_of = row
     oldest_value = oldest.isoformat() if hasattr(oldest, "isoformat") else oldest
     as_of_value = as_of.isoformat() if hasattr(as_of, "isoformat") else as_of
     return {
@@ -107,6 +113,8 @@ def fetch_site_backlog(cursor: Any, site_name: str) -> dict[str, Any]:
         "eligible": int(eligible or 0),
         "serial_match": int(serial_match or 0),
         "rf_conflict": int(rf_conflict or 0),
+        "completed": int(completed or 0),
+        "ledger_mismatch": int(ledger_mismatch or 0),
         "oldest": oldest_value,
         "as_of": as_of_value,
     }

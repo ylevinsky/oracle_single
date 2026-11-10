@@ -21,6 +21,7 @@ DATABASE_URL = os.environ.get("RAG_DATABASE_URL")
 CHUNK_SIZE = 1_200
 CHUNK_OVERLAP = 200
 TEXT_EXTENSIONS = {".md", ".txt", ".csv", ".json", ".py", ".sql", ".yaml", ".yml"}
+EXCLUDED_DIRECTORIES = {".venv", "venv", ".git", "__pycache__", "node_modules", ".pytest_cache"}
 
 
 def database_url() -> str:
@@ -67,7 +68,7 @@ def vector_literal(vector: list[float]) -> str:
 
 
 def init_database(_: argparse.Namespace) -> None:
-    with psycopg2.connect(database_url()) as connection:
+    with psycopg2.connect(database_url(), connect_timeout=10) as connection:
         with connection.cursor() as cursor:
             cursor.execute((ROOT / "schema.sql").read_text(encoding="utf-8"))
     print("RAG schema initialized.")
@@ -76,14 +77,19 @@ def init_database(_: argparse.Namespace) -> None:
 def source_files(path: Path) -> list[Path]:
     if path.is_file():
         return [path]
-    return [file for file in path.rglob("*") if file.suffix.lower() in TEXT_EXTENSIONS]
+    files = []
+    for directory, directories, names in os.walk(path, followlinks=False):
+        directories[:] = sorted(name for name in directories if name not in EXCLUDED_DIRECTORIES)
+        files.extend(Path(directory) / name for name in sorted(names)
+                     if Path(name).suffix.lower() in TEXT_EXTENSIONS)
+    return files
 
 
 def ingest(args: argparse.Namespace) -> None:
     files = source_files(Path(args.path).resolve())
     if not files:
         raise RuntimeError("No supported text files found.")
-    with psycopg2.connect(database_url()) as connection:
+    with psycopg2.connect(database_url(), connect_timeout=10, application_name="local_rag_ingest") as connection:
         with connection.cursor() as cursor:
             for file in files:
                 content = file.read_text(encoding="utf-8", errors="replace")

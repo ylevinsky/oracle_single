@@ -51,6 +51,7 @@ import schema_sql_copy
 import package_overloads
 import scheduled_task_logon
 import site_backlog
+import rag_status
 
 
 def _ensure_windows_programdata() -> None:
@@ -1930,6 +1931,13 @@ def inspect_local_rag_database() -> dict[str, Any]:
 
 
 @mcp.tool()
+def inspect_local_rag_ingestion_status() -> dict[str, Any]:
+    """Read RAG indexing timestamps and database session wait/blocking state."""
+    with psycopg2.connect(_local_rag_database_url(), connect_timeout=10) as database:
+        return rag_status.inspect(database)
+
+
+@mcp.tool()
 def ingest_local_rag_markdown(path: str = "local_rag") -> dict[str, Any]:
     """Ingest a Markdown or Python source file, or directory, into the local RAG."""
     source = (REPOSITORY_ROOT / path).resolve()
@@ -1939,10 +1947,12 @@ def ingest_local_rag_markdown(path: str = "local_rag") -> dict[str, Any]:
         raise ValueError("path must be a Markdown or Python file or directory")
     if not source.exists():
         raise ValueError(f"path does not exist: {path}")
-    command = [sys.executable, str(REPOSITORY_ROOT / "local_rag" / "rag.py"), "ingest", str(source)]
+    command = [sys.executable, "-I", str(REPOSITORY_ROOT / "local_rag" / "rag.py"), "ingest", str(source)]
+    environment = os.environ.copy()
+    environment["RAG_DATABASE_URL"] = _local_rag_database_url()
     completed = subprocess.run(
         command, cwd=str(REPOSITORY_ROOT), capture_output=True, text=True,
-        timeout=300, check=False,
+        timeout=600, check=False, env=environment, stdin=subprocess.DEVNULL,
     )
     if completed.returncode:
         raise RuntimeError((completed.stderr or completed.stdout).strip() or "RAG ingestion failed")

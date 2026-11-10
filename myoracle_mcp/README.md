@@ -97,6 +97,8 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
   encoding, size, and whether connections are allowed.
 - `inspect_local_rag_database`: checks the local RAG PostgreSQL database,
   pgvector extension, and required RAG tables.
+- `inspect_local_rag_ingestion_status`: reads document indexing timestamps and
+  PostgreSQL session waits and blocking PIDs, without returning SQL or credentials.
 - `ingest_local_rag_markdown`: ingests a Markdown or Python file, or directory,
   into the local PostgreSQL RAG database. Never ingest files containing secrets.
 - `list_top_full_scan_queries`: ranks shared-pool SQL from non-Oracle-maintained

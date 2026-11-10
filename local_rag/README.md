@@ -25,5 +25,10 @@ uv run --project .\local_rag python .\local_rag\rag.py query "your question"
 ```
 
 Supported sources are Markdown, text, CSV, JSON, Python, SQL, YAML, and YML.
+Directory ingestion skips virtual environments (`.venv`, `venv`), Git metadata,
+Python caches, pytest caches, and `node_modules`.
+The MCP ingestion subprocess has a ten-minute deadline. Codex's Super-MCP
+request timeout is set to eleven minutes to leave room for the result;
+restart Codex to activate a changed client timeout.
 Changing embedding models requires recreating/reindexing the RAG data because
 the vectors are model-specific.

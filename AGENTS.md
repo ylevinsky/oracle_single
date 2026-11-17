@@ -14,6 +14,14 @@ Before every database connection request:
 2. When a temporary script is necessary for development or validation, create it inside `temp_scripts/` only. After successful execution, promote it into the MCP server as an appropriate tested tool before deleting it, unless the user asks to retain it.
 3. Register promoted tools with `@mcp.tool()` and document them in the MCP README when applicable.
 
+## Hermes Agent
+
+Hermes does not load `.db/connections.json` by itself. It must call the **myoracle** MCP tools (`connections_list`, `oracle_sites_index`, `prepare_connection`, …).
+
+- Repair Center Oracle is saved as connection **`RH`** (not “rh database” as a separate file). Aliases such as `rh` and `repair center` resolve to `RH`.
+- Register myoracle with Hermes after pulling: `.\temp_scripts\register-workspace-mcp-for-hermes.ps1 -Test`, then start a new `hermes chat` session.
+- If `.db/connections.json` is missing, copy `.db/connections.json.example` or let myoracle bootstrap from the example on first load.
+
 ## Local RAG synchronization
 
 After every finding, diagnosis, handled error, or software/repository change, update the local RAG database by ingesting the relevant changed or newly created supported source file(s). Preserve sanitized content and never index credentials, secrets, or other sensitive values.

@@ -17,6 +17,9 @@ import public_database_link
 import clone_time
 import saved_query
 import schema_movement
+import schema_movement_new
+import schema_movement_process
+import codex_spain_setup
 import ephemeral_oracle
 import table_timestamps
 import readonly_user
@@ -303,6 +306,125 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(result["target_links_to_source"][0]["db_link"], "FLEX")
         self.assertEqual(result["source_movement_jobs"][0]["job_name"], "PUSH_DWH")
         self.assertEqual(result["materialized_views_using_a_database_link"][0]["mview_name"], "UUT_RESULT")
+
+    def test_schema_movement_new_inventory_has_no_datapump_jobs(self):
+        cursor = mock.MagicMock()
+        cursor.execute = mock.MagicMock()
+        cursor.fetchall = mock.MagicMock(return_value=[])
+        cursor.__iter__ = mock.MagicMock(return_value=iter([]))
+        inventory = schema_movement_new.collect_inventory(cursor)
+        self.assertNotIn("datapump_jobs", inventory)
+        self.assertEqual(inventory["movement_method"], "python_dbms_metadata_sql")
+
+    def test_schema_movement_new_comparison_uses_python_copy_method(self):
+        source = {
+            "schemas": {"A": {"table_count": 1, "statistics_num_rows": 1, "segment_bytes": 1}},
+            "database_links": [],
+            "materialized_views": [],
+            "scheduler_jobs": [
+                {
+                    "owner": "COPY_SCHEMA",
+                    "job_name": "SQL_COPY",
+                    "job_action": "begin schema_sql_copy.copy_schema(); end;",
+                }
+            ],
+        }
+        target = {
+            "schemas": {"A": {"table_count": 1, "statistics_num_rows": 1, "segment_bytes": 1}},
+            "database_links": [],
+            "materialized_views": [],
+            "scheduler_jobs": [],
+        }
+        result = schema_movement_new.compare_inventories(source, target, ["source"], ["target"])
+        self.assertEqual(result["copy_method"], "python_dbms_metadata_sql")
+        self.assertNotIn("source_datapump_jobs", result)
+        self.assertEqual(result["source_movement_jobs"][0]["job_name"], "SQL_COPY")
+
+    def test_schema_movement_new_copy_requires_confirmation(self):
+        source = _SqlCopyDatabase(["S1", "S2"])
+        target = _SqlCopyDatabase([])
+        result = schema_movement_new.copy_schemas(
+            "SRC",
+            "DST",
+            ["S1", "S2"],
+            confirmed=False,
+            tablespace_remap={},
+            connect=lambda name: {"SRC": source, "DST": target}[name],
+        )
+        self.assertEqual(result["status"], "not_confirmed")
+        self.assertEqual(result["schemas"], ["S1", "S2"])
+
+    def test_schema_movement_new_copy_stops_when_target_has_schema(self):
+        source = _SqlCopyDatabase(["OPDI2_SYSTEM"])
+        target = _SqlCopyDatabase(["OPDI2_SYSTEM"])
+        result = schema_movement_new.copy_schemas(
+            "RH",
+            "HUN",
+            ["OPDI2_SYSTEM"],
+            confirmed=True,
+            tablespace_remap={"RH_TBS": "HUNG_TBS"},
+            connect=lambda name: {"RH": source, "HUN": target}[name],
+        )
+        self.assertEqual(result["status"], "stopped")
+        self.assertEqual(result["existing_on_target"], ["OPDI2_SYSTEM"])
+
+    def test_schema_movement_spain_alias_and_tablespace_remap(self):
+        self.assertEqual(
+            schema_movement_new.resolve_connection_name("Spain"),
+            schema_movement_new.SPAIN_CONNECTION,
+        )
+        remap = schema_movement_new.tablespace_remap_for_spain({"RH_TBS": "USERS"})
+        self.assertEqual(remap["HUNG_TBS"], "SPAIN_TBS")
+        self.assertEqual(remap["RH_TBS"], "USERS")
+
+    def test_schema_movement_process_copy_parser_defaults_to_spain(self):
+        args = schema_movement_process.build_parser().parse_args(
+            ["copy", "--source", "RH", "--schema", "ATE_RESULTS"]
+        )
+        self.assertIsNone(args.target)
+        self.assertTrue(schema_movement_process.copy_targets_spain(args))
+
+    def test_schema_movement_process_bundle_lists_modules(self):
+        names = [path.name for path in schema_movement_process.bundle_paths()]
+        self.assertIn("schema_movement_new.py", names)
+        self.assertIn("schema_movement_process.py", names)
+
+    def test_codex_spain_setup_requires_confirmation(self):
+        result = codex_spain_setup.run_codex_spain_setup(
+            "x" * 24,
+            confirmed=False,
+        )
+        self.assertEqual(result["status"], "not_confirmed")
+        self.assertIn("stop_cursor_processes", result["actions"])
+
+    def test_codex_spain_setup_redacts_api_key_in_errors(self):
+        secret = "x" * 24
+        text = codex_spain_setup._redact(f"boom {secret}", secret)
+        self.assertNotIn(secret, text)
+
+    def test_codex_spain_remote_command_does_not_embed_key(self):
+        command = codex_spain_setup.build_remote_command(
+            r"C:\ORCL\codex_setup\codex_api_key.txt",
+            r"C:\git\oracle_single\.codex\config.toml",
+        )
+        self.assertIn("codex_spain_setup.ps1", command)
+        self.assertNotIn("sk-", command)
+
+    def test_schema_movement_process_deploy_calls_upload(self):
+        uploaded: list[tuple] = []
+
+        def fake_upload(host, port, username, password, sources, remote_directory):
+            uploaded.append((host, remote_directory, [source.name for source in sources]))
+            return {"seconds": 0.1}
+
+        with mock.patch("server._read_connection", return_value={"host": "sp-host"}), mock.patch(
+            "server._ssh_settings", return_value=("brillix", "SSH/sp", 22)
+        ), mock.patch("server._read_windows_credential", return_value="secret"):
+            result = schema_movement_process.deploy_bundle_to_spain(upload=fake_upload)
+
+        self.assertEqual(result["connection_name"], schema_movement_new.SPAIN_CONNECTION)
+        self.assertEqual(result["remote_directory"], schema_movement_process.DEFAULT_SPAIN_REMOTE_DIR)
+        self.assertTrue(uploaded)
 
     def test_copy_schema_artifacts_are_excluded_from_daily_job_alerts(self):
         self.assertTrue(server._is_copy_schema_job({"owner": "COPY_SCHEMA"}))

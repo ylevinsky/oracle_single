@@ -730,8 +730,6 @@ def _spain_refresh_mv_alerts() -> list[dict[str, Any]]:
         error_text = " ".join(
             str(run.get("output") or run.get("input") or "No error text recorded").split()
         )
-        if len(error_text) > 300:
-            error_text = error_text[:297] + "..."
         alerts.append({
             "type": "refresh_mv_error",
             "site": str(run.get("input") or "unknown").split(":", 1)[0].strip() or "unknown",
@@ -1267,7 +1265,7 @@ def _alert_log_alerts(connection_name: str, last_records: int = 5000) -> list[di
         for code in dict.fromkeys(codes):
             counts[code] = counts.get(code, 0) + 1
             if code not in examples:
-                examples[code] = " ".join(raw_text.split())[:500]
+                examples[code] = " ".join(raw_text.split())
     return [
         {
             "type": "alert_log_error",

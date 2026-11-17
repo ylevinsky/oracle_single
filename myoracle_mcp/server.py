@@ -41,6 +41,7 @@ import connection_migration
 import local_postgres
 import transfer_queue
 import ph_remaining_copy
+import ph_rf_conflict_repair
 import hungary_targeted_copy
 import site_force_refresh
 import site_index_maintenance
@@ -5343,6 +5344,42 @@ def copy_saved_remaining_ph_units(connection_name: str, confirmed: bool = False)
         connection.commit()
         result["connection"] = connection_name
         result["status"] = "copied"
+        return result
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+@mcp.tool()
+def repair_saved_ph_rf_conflict(
+    connection_name: str,
+    source_serial: str,
+    stale_target_serial: str,
+    rf_number: str,
+    confirmed: bool = False,
+) -> dict[str, object]:
+    """Resolve one proven PH RF collision in the Spain global target.
+
+    Verifies the PH staging row and confirms the conflicting target serial is
+    absent from every current site staging MV. It retains the older global row
+    with a NULL RF, inserts the verified PH row, and records its transfer.
+    Requires ``confirmed=true``.
+    """
+    if confirmed is not True:
+        raise ValueError("Set confirmed=true only after explicit approval to repair this PH RF conflict.")
+    connection = _connect_saved_oracle(connection_name)
+    try:
+        with connection.cursor() as cursor:
+            result = ph_rf_conflict_repair.repair_ph_rf_conflict(
+                cursor,
+                source_serial=source_serial,
+                stale_target_serial=stale_target_serial,
+                rf_number=rf_number,
+            )
+        connection.commit()
+        result["connection"] = connection_name
         return result
     except Exception:
         connection.rollback()

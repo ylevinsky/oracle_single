@@ -127,6 +127,10 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
   `ATE_RESULTS.GLOBAL_UUT_ATTRIBUTES`, including a repeated RF number and a
   listed product stored only as `FIRST_UUT_NAME`, and logs them as `PH`.
   Run it on the Spain connection. It requires `confirmed=true`.
+- `repair_saved_ph_rf_conflict`: resolves one verified RF collision by keeping
+  the stale global row with a NULL RF, inserting the current PH staging row,
+  and recording its PH transfer. It checks that the stale serial is absent
+  from all current site staging views. Requires `confirmed=true`.
 - `copy_saved_hungary_units_by_rf`: copies only the listed Hungary RF numbers
   from `TRANSFER_USER.HUNGARY_UUT_ATTRUBUTES` into
   `ATE_RESULTS.GLOBAL_UUT_ATTRIBUTES` and logs them as `Hungary`.

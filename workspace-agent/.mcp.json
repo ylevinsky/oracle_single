@@ -9,11 +9,11 @@
       "cwd": "C:\\git"
     },
     "myoracle": {
-      "command": "C:\\git\\oracle_single\\myoracle_mcp\\.venv\\Scripts\\python.exe",
-      "args": ["C:\\git\\oracle_single\\myoracle_mcp\\server.py"],
-      "cwd": "C:\\git\\oracle_single",
+      "command": "C:\\git\\oracle_single\\myoracle_mcp\\run_stdio.cmd",
+      "args": [],
       "env": {
-        "PYTHONIOENCODING": "utf-8"
+        "PYTHONIOENCODING": "utf-8",
+        "MYORACLE_REPOSITORY_ROOT": "C:\\git\\oracle_single"
       }
     }
   }

@@ -8,6 +8,8 @@ plus the 34 additional tools imported from the maintained Oracle implementation
 in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
 
 - `connections_list`: lists saved Oracle connection names without connecting.
+- `oracle_sites_index`: maps site labels (RH / Repair Center, Hungary, …) to saved
+  connection keys for agents that do not read `.db/connections.json` directly.
 - `migrate_mobaxterm_to_mremoteng`: imports SSH/RDP bookmarks from MobaXterm
   into a complete mRemoteNG connection file, creates a timestamped backup,
   and leaves connection passwords blank so startup does not prompt.

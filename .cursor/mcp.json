@@ -1,9 +1,11 @@
 {
   "mcpServers": {
     "myoracle": {
-      "command": "C:\\git\\oracle_single\\myoracle_mcp\\.venv\\Scripts\\python.exe",
-      "args": ["C:\\git\\oracle_single\\myoracle_mcp\\server.py"],
-      "cwd": "C:\\git\\oracle_single"
+      "command": "python3",
+      "args": ["${workspaceFolder}/myoracle_mcp/run_stdio.py"],
+      "env": {
+        "PYTHONIOENCODING": "utf-8"
+      }
     }
   }
 }

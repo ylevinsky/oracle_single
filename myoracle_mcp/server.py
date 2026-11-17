@@ -52,6 +52,7 @@ import package_overloads
 import scheduled_task_logon
 import site_backlog
 import rag_status
+import connection_store
 
 
 def _ensure_windows_programdata() -> None:
@@ -67,8 +68,8 @@ def _ensure_windows_programdata() -> None:
 
 _ensure_windows_programdata()
 
-REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
-CONNECTIONS_FILE = REPOSITORY_ROOT / ".db" / "connections.json"
+REPOSITORY_ROOT = connection_store.repository_root()
+CONNECTIONS_FILE = connection_store.connections_file()
 DAILY_ROUTINE_CONFIG_FILE = Path(__file__).with_name("config.yaml")
 DAILY_ROUTINE_TASK_NAME = r"\OracleMCP\DailyRoutine"
 TOKEN_LIFETIME_SECONDS = 10 * 60
@@ -76,8 +77,12 @@ TOKEN_LIFETIME_SECONDS = 10 * 60
 mcp = FastMCP(
     "myoracle",
     instructions=(
-        "Oracle tools scoped to this repository. Use the saved connection records "
-        "and validate all tool inputs before connecting or changing Oracle state."
+        "Oracle tools scoped to this repository. Saved targets live in "
+        ".db/connections.json; call connections_list or oracle_sites_index before "
+        "guessing a connection name. Repair Center production Oracle is connection "
+        "'RH' (aliases: rh, repair center). Hungary is 'HUN', Ofakim is 'FLEX', "
+        "Philippines is 'PH', Spain is 'es_db2_orclsp_sys'. Validate tool inputs "
+        "before connecting or changing Oracle state."
     ),
 )
 
@@ -86,18 +91,13 @@ _token_lock = threading.Lock()
 
 
 def _read_connection(connection_name: str) -> dict[str, Any]:
-    try:
-        document = json.loads(CONNECTIONS_FILE.read_text(encoding="utf-8"))
-    except FileNotFoundError as exc:
-        raise ValueError(f"Connection file not found: {CONNECTIONS_FILE}") from exc
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"Invalid JSON in {CONNECTIONS_FILE}: {exc}") from exc
-
+    document = connection_store.load_connections_document()
     connections = document.get("connections")
     if not isinstance(connections, dict):
         raise ValueError("connections.json must contain a 'connections' object")
 
-    connection = connections.get(connection_name)
+    resolved_name = connection_store.resolve_connection_name(connection_name, connections)
+    connection = connections.get(resolved_name)
     if not isinstance(connection, dict):
         available = ", ".join(sorted(connections)) or "(none)"
         raise ValueError(
@@ -121,7 +121,7 @@ def _read_connection(connection_name: str) -> dict[str, Any]:
     if str(connection["engine"]).lower() != "oracle":
         raise ValueError(f"Connection '{connection_name}' is not an Oracle connection")
     connection = dict(connection)
-    connection["connection_name"] = connection_name
+    connection["connection_name"] = resolved_name
     return connection
 
 
@@ -1349,7 +1349,7 @@ def inspect_saved_backup_log_errors(connection_name: str, remote_log_root: str =
 @mcp.tool()
 def connections_list() -> list[str]:
     """List saved Oracle connection names without connecting to a database."""
-    document = json.loads(CONNECTIONS_FILE.read_text(encoding="utf-8"))
+    document = connection_store.load_connections_document()
     connections = document.get("connections", {})
     return sorted(
         name
@@ -1357,6 +1357,21 @@ def connections_list() -> list[str]:
         if isinstance(details, dict)
         and str(details.get("engine", "")).lower() == "oracle"
     )
+
+
+@mcp.tool()
+def oracle_sites_index() -> dict[str, Any]:
+    """Map site labels (RH / Repair Center, Hungary, …) to saved connection keys."""
+    document = connection_store.load_connections_document()
+    connections = document.get("connections", {})
+    if not isinstance(connections, dict):
+        raise ValueError("connections.json must contain a 'connections' object")
+    return {
+        "connections_file": str(connection_store.connections_file()),
+        "repository_root": str(connection_store.repository_root()),
+        "sites": connection_store.oracle_site_index(connections),
+        "oracle_connection_names": connections_list(),
+    }
 
 
 @mcp.tool()

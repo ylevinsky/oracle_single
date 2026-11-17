@@ -786,20 +786,35 @@ class ServerTests(unittest.TestCase):
                 },
             ],
         }
-        with mock.patch.object(server, "_read_windows_credential", return_value="safe-token"), \
-             mock.patch.object(server, "urlopen") as urlopen:
-            response = mock.MagicMock()
-            response.read.return_value = b'{"ok": true, "ts": "123.456"}'
-            urlopen.return_value.__enter__.return_value = response
-            notification = server._send_daily_routine_slack_message("D03JEDPH5CH", result)
+        with TemporaryDirectory() as directory:
+            report_path = Path(directory) / "report.md"
+            report_path.write_text("# Daily Routine Report\n", encoding="utf-8")
+            result["markdown_report"] = {"path": str(report_path), "file": "report.md"}
+            with mock.patch.object(server, "_read_windows_credential", return_value="safe-token"), \
+                 mock.patch.object(server, "urlopen") as urlopen:
+                api_responses = [
+                    b'{"ok": true, "upload_url": "https://files.slack.com/upload/v1/token", "file_id": "F123"}',
+                    b"uploaded",
+                    b'{"ok": true, "files": [{"id": "F123"}]}',
+                ]
+                def open_response(*_args, **_kwargs):
+                    response = mock.MagicMock()
+                    response.read.return_value = api_responses.pop(0)
+                    response.status = 200
+                    return mock.MagicMock(__enter__=mock.Mock(return_value=response), __exit__=mock.Mock(return_value=False))
+                urlopen.side_effect = open_response
+                notification = server._send_daily_routine_slack_message("D03JEDPH5CH", result)
 
         self.assertTrue(notification["delivered"])
-        self.assertEqual(notification["message_ts"], "123.456")
-        self.assertEqual(notification["message_count"], 1)
-        request = urlopen.call_args.args[0]
-        self.assertNotIn("safe-token", request.data.decode("utf-8"))
-        self.assertIn("Space: USERS 9.50% free", request.data.decode("utf-8"))
-        self.assertNotIn("Refresh/job", request.data.decode("utf-8"))
+        self.assertEqual(notification["file_id"], "F123")
+        self.assertEqual(notification["file_count"], 1)
+        self.assertEqual(notification["filename"], "report.md")
+        self.assertEqual(urlopen.call_count, 3)
+        requests = [call.args[0] for call in urlopen.call_args_list]
+        self.assertTrue(requests[0].full_url.endswith("files.getUploadURLExternal"))
+        self.assertEqual(requests[1].data, b"# Daily Routine Report\n")
+        self.assertTrue(requests[2].full_url.endswith("files.completeUploadExternal"))
+        self.assertNotIn("safe-token", b"".join(request.data for request in requests))
 
     def test_daily_routine_writes_markdown_report(self):
         result = {
@@ -828,7 +843,9 @@ class ServerTests(unittest.TestCase):
             self.assertEqual(report["file"], "report.md")
             content = report_path.read_text(encoding="utf-8")
             self.assertIn("# Daily Routine Report", content)
-            self.assertIn("`OFAKIM_TBS`: 11.37% free", content)
+            self.assertIn("| Tablespace | Free % | Issue |", content)
+            self.assertIn("| OFAKIM_TBS | 11.37 | free_percent_below_threshold |", content)
+            self.assertNotIn("```json", content)
 
     def test_daily_routine_notification_lists_unreachable_databases(self):
         result = {

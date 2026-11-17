@@ -391,46 +391,107 @@ def _daily_routine_notification_messages(result: dict[str, Any]) -> list[str]:
 
 
 def _send_daily_routine_slack_message(channel_id: str, result: dict[str, Any]) -> dict[str, Any]:
-    """Post the complete bounded daily-routine report using the Slack token."""
+    """Upload the generated Markdown report to Slack as a single file."""
     normalized_channel_id = channel_id.strip()
     if not re.fullmatch(r"[CDG][A-Z0-9]{8,}", normalized_channel_id):
         raise ValueError("slack_channel_id must be a Slack channel, DM, or group-DM ID")
 
+    report_info = result.get("markdown_report") or {}
+    report_path_value = report_info.get("path")
+    if not report_info.get("written") and not report_path_value:
+        raise RuntimeError("Markdown report was not written; cannot upload it to Slack")
+    report_path = Path(report_path_value) if report_path_value else REPOSITORY_ROOT / "report.md"
+    if not report_path.is_file():
+        raise RuntimeError("Markdown report file does not exist; cannot upload it to Slack")
+    report_bytes = report_path.read_bytes()
+    if not report_bytes:
+        raise RuntimeError("Markdown report file is empty; cannot upload it to Slack")
     token = _read_windows_credential("MCP/Slack")
-    deliveries = []
-    for message in _daily_routine_notification_messages(result):
+
+    def slack_api_call(method_name: str, payload: dict[str, Any]) -> dict[str, Any]:
+        is_form = method_name.endswith("getUploadURLExternal")
         request = Request(
-            "https://slack.com/api/chat.postMessage",
-            data=json.dumps({"channel": normalized_channel_id, "text": message}).encode("utf-8"),
+            f"https://slack.com/api/{method_name}",
+            data=(urlencode(payload).encode("utf-8") if is_form else json.dumps(payload).encode("utf-8")),
             headers={
                 "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json; charset=utf-8",
+                "Content-Type": "application/x-www-form-urlencoded; charset=utf-8"
+                if is_form else "application/json; charset=utf-8",
             },
             method="POST",
         )
         try:
-            with urlopen(request, timeout=20) as response:
+            with urlopen(request, timeout=30) as response:
                 response_payload = json.loads(response.read().decode("utf-8"))
         except HTTPError as exc:
-            raise RuntimeError(f"Slack notification failed with HTTP status {exc.code}") from exc
+            raise RuntimeError(f"Slack {method_name} failed with HTTP status {exc.code}") from exc
         except URLError as exc:
-            raise RuntimeError("Slack notification could not reach the Slack API") from exc
+            raise RuntimeError(f"Slack {method_name} could not reach the Slack API") from exc
         if not response_payload.get("ok"):
             raise RuntimeError(
-                f"Slack notification rejected: {response_payload.get('error', 'unknown_error')}"
+                f"Slack {method_name} rejected: {response_payload.get('error', 'unknown_error')}"
             )
-        deliveries.append(response_payload.get("ts"))
+        return response_payload
+
+    upload = slack_api_call(
+        "files.getUploadURLExternal",
+        {"filename": report_path.name, "length": len(report_bytes)},
+    )
+    upload_url = str(upload.get("upload_url") or "")
+    if not upload_url.startswith("https://files.slack.com/"):
+        raise RuntimeError("Slack returned an invalid file upload URL")
+    upload_request = Request(
+        upload_url, data=report_bytes,
+        headers={"Content-Type": "text/markdown; charset=utf-8"}, method="POST",
+    )
+    try:
+        with urlopen(upload_request, timeout=60) as response:
+            if response.status < 200 or response.status >= 300:
+                raise RuntimeError(f"Slack file upload failed with HTTP status {response.status}")
+    except HTTPError as exc:
+        raise RuntimeError(f"Slack file upload failed with HTTP status {exc.code}") from exc
+    except URLError as exc:
+        raise RuntimeError("Slack file upload could not reach the upload service") from exc
+
+    slack_api_call(
+        "files.completeUploadExternal",
+        {
+            "files": [{"id": upload["file_id"], "title": "Daily Routine Report"}],
+            "channel_id": normalized_channel_id,
+            "initial_comment": (
+                f"Daily routine: {result['target_count']} targets, "
+                f"{result['issue_count']} with issues, {result.get('failed_count', 0)} unreachable. "
+                f"Free-space threshold: {result['minimum_free_percent']:g}%."
+            ),
+        },
+    )
     return {
         "delivered": True,
         "channel_id": normalized_channel_id,
-        "message_ts": deliveries[0],
-        "message_count": len(deliveries),
-        "message_timestamps": deliveries,
+        "file_id": upload["file_id"],
+        "filename": report_path.name,
+        "file_count": 1,
     }
 
 
 def _write_daily_routine_report(result: dict[str, Any]) -> dict[str, Any]:
-    """Write the complete daily routine result as a local Markdown report."""
+    """Write the complete daily routine result using readable Markdown tables."""
+    def cell(value: Any) -> str:
+        if value is None:
+            rendered = "—"
+        elif isinstance(value, dict):
+            rendered = "; ".join(f"{key}: {item}" for key, item in value.items())
+        elif isinstance(value, list):
+            rendered = "; ".join(map(str, value))
+        else:
+            rendered = str(value)
+        return rendered.replace("|", "\\|").replace("\r", " ").replace("\n", " ")
+
+    def table(headers: list[str], rows: list[list[Any]]) -> list[str]:
+        if not rows:
+            return []
+        return (["| " + " | ".join(headers) + " |", "| " + " | ".join("---" for _ in headers) + " |"]
+                + ["| " + " | ".join(cell(value) for value in row) + " |" for row in rows])
     lines = [
         "# Daily Routine Report",
         "",
@@ -439,10 +500,12 @@ def _write_daily_routine_report(result: dict[str, Any]) -> dict[str, Any]:
         "",
         "## Summary",
         "",
-        f"- Targets checked: {result['target_count']}",
-        f"- OK: {result['ok_count']}",
-        f"- Issues: {result['issue_count']}",
-        f"- Failed: {result['failed_count']}",
+        "| Metric | Count |",
+        "| --- | ---: |",
+        f"| Targets checked | {result['target_count']} |",
+        f"| OK | {result['ok_count']} |",
+        f"| Issues | {result['issue_count']} |",
+        f"| Failed | {result['failed_count']} |",
         "",
         "## Target details",
         "",
@@ -451,17 +514,17 @@ def _write_daily_routine_report(result: dict[str, Any]) -> dict[str, Any]:
         name = target["connection_name"]
         lines.append(f"### {name} — {target['status'].upper()}")
         if target["status"] == "failed":
-            lines.extend(["", f"- Connection error: `{target['error']}`", ""])
+            lines.extend(["", "| Check | Details |", "| --- | --- |", f"| Connection error | {cell(target['error'])} |", ""])
             continue
 
         space_issues = target.get("space_issues", [])
         if space_issues:
             lines.extend(["", "**Tablespace capacity alerts**", ""])
-            for issue in space_issues:
-                lines.append(
-                    f"- `{issue['tablespace_name']}`: {issue['free_percent']:.2f}% free "
-                    f"({issue['issue']})"
-                )
+            lines.extend(table(
+                ["Tablespace", "Free %", "Issue"],
+                [[item["tablespace_name"], f"{item['free_percent']:.2f}", item["issue"]]
+                 for item in space_issues],
+            ))
         for label, key in (
             ("Backup alerts", "backup_alerts"),
             ("Alert-log alerts", "alert_log_alerts"),
@@ -469,9 +532,13 @@ def _write_daily_routine_report(result: dict[str, Any]) -> dict[str, Any]:
         ):
             alerts = target.get(key, [])
             if alerts:
-                lines.extend(["", f"**{label}**", "", "```json"])
-                lines.append(json.dumps(alerts, indent=2, default=str))
-                lines.extend(["```"])
+                lines.extend(["", f"**{label}**", ""])
+                fields = list(dict.fromkeys(field for alert in alerts for field in alert))
+                lines.extend(table(
+                    ["Type", *[field.replace("_", " ").title() for field in fields if field != "type"]],
+                    [[alert.get("type", "alert"), *[alert.get(field, "—") for field in fields if field != "type"]]
+                     for alert in alerts],
+                ))
         if not space_issues and not any(
             target.get(key) for key in ("backup_alerts", "alert_log_alerts", "refresh_mv_alerts")
         ):

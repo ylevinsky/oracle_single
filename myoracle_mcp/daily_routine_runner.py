@@ -2,22 +2,23 @@
 
 from __future__ import annotations
 
-import json
+from pathlib import Path
 
-from server import _daily_routine_notification_messages, daily_rutione_check
+from server import daily_rutione_check
 
 
 def main() -> int:
     result = daily_rutione_check()
-    try:
-        messages = _daily_routine_notification_messages(result)
-    except Exception as exc:
-        print(f"Local report formatting failed: {exc}")
+    report = result.get("markdown_report") or {}
+    report_path = report.get("path")
+    if report_path and Path(report_path).is_file():
+        print(Path(report_path).read_text(encoding="utf-8"))
     else:
-        for message in messages:
-            print(message)
-            print()
-    print(json.dumps(result, indent=2, default=str))
+        print(f"Markdown report unavailable: {report.get('error', 'report was not written')}")
+    if result.get("slack_notification", {}).get("delivered"):
+        print("Slack: Markdown report uploaded.")
+    elif result.get("slack_notification"):
+        print(f"Slack delivery failed: {result['slack_notification'].get('error', 'unknown error')}")
     return 0
 
 

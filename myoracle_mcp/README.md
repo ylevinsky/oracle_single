@@ -59,10 +59,8 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
   RMAN job details to `V$BACKUP_SET_DETAILS` by session key. It sends a detailed
   aggregate notification to the `daily_routine.slack_user_id` configured in `config.yaml`.
   The file uses JSON-compatible YAML and stores a Slack user ID, so the bot opens
-  its own DM channel. The complete report is split into readable parts (up to
-  three messages). When the findings outgrow three messages, the notifier
-  switches to a compact one-line-per-target rendering so every problem is still
-  delivered instead of dropping the notification.
+  its own DM channel. The complete report is uploaded to Slack as one Markdown
+  file with a short summary comment instead of separate messages.
   For Spain (`es_db2_orclsp_sys`) it also includes up to five `refresh_mv.py`
   `DAILY_TRANSFER` errors from the last 48 hours, a `refresh_mv_backlog_breach`
   alert for any site whose eligible staging backlog reaches 100 rows or whose
@@ -79,11 +77,13 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
   Generic job and refresh statuses remain outside the report.
   A saved Oracle target that cannot be reached is reported as not connected.
   The complete result is also written to `report.md` at the repository root.
+  It uses Markdown tables for capacity and alert details, without embedded JSON.
   Supply `slack_channel_id` to override that destination.
   The `MCP/Slack` Credential Manager token is used for delivery.
 - `configure_daily_routine_schedule`: creates or updates the local Windows Task
   Scheduler task `\\OracleMCP\\DailyRoutine` for daily execution at 08:00. Its
-  runner calls `daily_rutione_check`, prints the full result locally, and sends the configured default Slack DM.
+  runner calls `daily_rutione_check`, prints the Markdown report locally, and
+  uploads that report to the configured default Slack DM.
 - `set_saved_scheduled_task_run_whether_logged_on`: changes one Windows scheduled
   task on a saved host so it runs whether its account is logged on. The saved
   SSH password is sent on the remote process stdin and is not returned. The

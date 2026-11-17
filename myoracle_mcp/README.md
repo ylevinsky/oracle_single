@@ -77,7 +77,9 @@ in `C:\git\ORCL\oracle_connectivity_mcp\server.py`.
   Generic job and refresh statuses remain outside the report.
   A saved Oracle target that cannot be reached is reported as not connected.
   The complete result is also written to `report.md` at the repository root.
-  It uses Markdown tables for capacity and alert details, without embedded JSON.
+  It uses Markdown tables for capacity and alert details, with an error-message
+  column on alert rows. Spain sync error rows include both the site and the
+  recorded error message.
   Supply `slack_channel_id` to override that destination.
   The `MCP/Slack` Credential Manager token is used for delivery.
 - `configure_daily_routine_schedule`: creates or updates the local Windows Task

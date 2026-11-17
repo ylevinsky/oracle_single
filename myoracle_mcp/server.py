@@ -492,6 +492,24 @@ def _write_daily_routine_report(result: dict[str, Any]) -> dict[str, Any]:
             return []
         return (["| " + " | ".join(headers) + " |", "| " + " | ".join("---" for _ in headers) + " |"]
                 + ["| " + " | ".join(cell(value) for value in row) + " |" for row in rows])
+
+    def error_message(alert: dict[str, Any]) -> str:
+        message = alert.get("error_message") or alert.get("error")
+        if message:
+            return str(message)
+        alert_type = alert.get("type")
+        if alert_type == "alert_log_error":
+            return f"{alert.get('code', 'Database error')} reported {alert.get('count', 0)} times in the alert log."
+        if alert_type in {"missing_full", "missing_incremental"}:
+            return (
+                f"No RMAN level {alert.get('incremental_level')} backup completed "
+                f"within {alert.get('days')} days."
+            )
+        if alert_type == "failed_backup":
+            return f"RMAN backup ended with status {alert.get('status', 'unknown')}."
+        if alert_type == "refresh_mv_not_executed":
+            return f"No Spain sync execution was recorded in the last {alert.get('hours', 48)} hours."
+        return f"Alert requires attention: {alert_type or 'unknown'}"
     lines = [
         "# Daily Routine Report",
         "",
@@ -514,7 +532,7 @@ def _write_daily_routine_report(result: dict[str, Any]) -> dict[str, Any]:
         name = target["connection_name"]
         lines.append(f"### {name} — {target['status'].upper()}")
         if target["status"] == "failed":
-            lines.extend(["", "| Check | Details |", "| --- | --- |", f"| Connection error | {cell(target['error'])} |", ""])
+            lines.extend(["", "| Check | Error Message |", "| --- | --- |", f"| Connection | {cell(target['error'])} |", ""])
             continue
 
         space_issues = target.get("space_issues", [])
@@ -533,10 +551,25 @@ def _write_daily_routine_report(result: dict[str, Any]) -> dict[str, Any]:
             alerts = target.get(key, [])
             if alerts:
                 lines.extend(["", f"**{label}**", ""])
-                fields = list(dict.fromkeys(field for alert in alerts for field in alert))
+                is_sync = key == "refresh_mv_alerts"
+                for alert in alerts:
+                    alert.setdefault("error_message", error_message(alert))
+                    if is_sync:
+                        alert.setdefault("site", "unknown")
+                fields = list(dict.fromkeys(
+                    field for alert in alerts for field in alert
+                    if field not in {"error", "error_message"} and not (is_sync and field == "site")
+                ))
+                headers = ["Type"]
+                if is_sync:
+                    headers.append("Site")
+                headers.extend(field.replace("_", " ").title() for field in fields if field != "type")
+                headers.append("Error Message")
                 lines.extend(table(
-                    ["Type", *[field.replace("_", " ").title() for field in fields if field != "type"]],
-                    [[alert.get("type", "alert"), *[alert.get(field, "—") for field in fields if field != "type"]]
+                    headers,
+                    [[alert.get("type", "alert"), *([alert.get("site", "unknown")] if is_sync else []),
+                      *[alert.get(field, "") for field in fields if field != "type"],
+                      error_message(alert)]
                      for alert in alerts],
                 ))
         if not space_issues and not any(
@@ -701,9 +734,11 @@ def _spain_refresh_mv_alerts() -> list[dict[str, Any]]:
             error_text = error_text[:297] + "..."
         alerts.append({
             "type": "refresh_mv_error",
+            "site": str(run.get("input") or "unknown").split(":", 1)[0].strip() or "unknown",
             "started_at": run.get("started_at"),
             "ended_at": run.get("ended_at"),
             "error": error_text,
+            "error_message": error_text,
         })
         error_count += 1
         if error_count == 5:
@@ -713,6 +748,7 @@ def _spain_refresh_mv_alerts() -> list[dict[str, Any]]:
             "type": "refresh_mv_not_executed",
             "status": "failure",
             "hours": 48,
+            "error_message": "No DAILY_TRANSFER execution was recorded in the last 48 hours.",
         }]
     return alerts
 
@@ -1216,6 +1252,7 @@ def _alert_log_alerts(connection_name: str, last_records: int = 5000) -> list[di
             "error": f"{type(exc).__name__}: {exc}",
         }]
     counts: dict[str, int] = {}
+    examples: dict[str, str] = {}
     for match in result.get("matches") or []:
         text = match.get("text")
         if isinstance(text, dict):
@@ -1229,8 +1266,15 @@ def _alert_log_alerts(connection_name: str, last_records: int = 5000) -> list[di
             codes.append(f"TNS-{found}")
         for code in dict.fromkeys(codes):
             counts[code] = counts.get(code, 0) + 1
+            if code not in examples:
+                examples[code] = " ".join(raw_text.split())[:500]
     return [
-        {"type": "alert_log_error", "code": code, "count": count}
+        {
+            "type": "alert_log_error",
+            "code": code,
+            "count": count,
+            "error_message": examples.get(code),
+        }
         for code, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
     ]
 

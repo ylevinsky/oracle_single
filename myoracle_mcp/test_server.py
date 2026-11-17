@@ -351,7 +351,8 @@ class ServerTests(unittest.TestCase):
 
     def test_spain_refresh_mv_alerts_returns_at_most_five_recent_errors(self):
         recent_runs = [
-            {"state": "ERROR", "started_at": f"start-{number}", "ended_at": f"end-{number}", "output": f"ORA-{number}"}
+            {"state": "ERROR", "started_at": f"start-{number}", "ended_at": f"end-{number}",
+             "input": "Hungary: transfer batch", "output": f"ORA-{number}"}
             for number in range(6)
         ]
         with mock.patch.object(
@@ -363,6 +364,8 @@ class ServerTests(unittest.TestCase):
         inspect.assert_called_once_with("es_db2_orclsp_sys", history_days=2)
         self.assertEqual(len(alerts), 5)
         self.assertEqual(alerts[0]["error"], "ORA-0")
+        self.assertEqual(alerts[0]["site"], "Hungary")
+        self.assertEqual(alerts[0]["error_message"], "ORA-0")
 
     def test_spain_refresh_mv_alerts_reports_missing_execution(self):
         with mock.patch.object(
@@ -373,7 +376,8 @@ class ServerTests(unittest.TestCase):
             alerts = server._spain_refresh_mv_alerts()
         self.assertEqual(
             alerts,
-            [{"type": "refresh_mv_not_executed", "status": "failure", "hours": 48}],
+            [{"type": "refresh_mv_not_executed", "status": "failure", "hours": 48,
+              "error_message": "No DAILY_TRANSFER execution was recorded in the last 48 hours."}],
         )
 
     def test_spain_refresh_mv_alerts_reports_stuck_workers_first(self):
@@ -833,7 +837,13 @@ class ServerTests(unittest.TestCase):
                 }],
                 "backup_alerts": [],
                 "alert_log_alerts": [],
-                "refresh_mv_alerts": [],
+                "refresh_mv_alerts": [{
+                    "type": "refresh_mv_error",
+                    "site": "Hungary",
+                    "ended_at": "2026-11-16 20:00:13",
+                    "error": "ORA-01555 snapshot too old",
+                    "error_message": "ORA-01555 snapshot too old",
+                }],
             }],
         }
         with TemporaryDirectory() as directory:
@@ -845,6 +855,8 @@ class ServerTests(unittest.TestCase):
             self.assertIn("# Daily Routine Report", content)
             self.assertIn("| Tablespace | Free % | Issue |", content)
             self.assertIn("| OFAKIM_TBS | 11.37 | free_percent_below_threshold |", content)
+            self.assertIn("| Type | Site | Ended At | Error Message |", content)
+            self.assertIn("| refresh_mv_error | Hungary | 2026-11-16 20:00:13 | ORA-01555 snapshot too old |", content)
             self.assertNotIn("```json", content)
 
     def test_daily_routine_notification_lists_unreachable_databases(self):
@@ -998,8 +1010,10 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(
             alerts,
             [
-                {"type": "alert_log_error", "code": "ORA-04036", "count": 2},
-                {"type": "alert_log_error", "code": "TNS-12170", "count": 1},
+                {"type": "alert_log_error", "code": "ORA-04036", "count": 2,
+                 "error_message": "ORA-04036: PGA memory used by the instance exceeds PGA_AGGREGATE_LIMIT"},
+                {"type": "alert_log_error", "code": "TNS-12170", "count": 1,
+                 "error_message": "Fatal NI connect error 12170."},
             ],
         )
 
